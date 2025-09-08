@@ -1,0 +1,24 @@
+{
+  "name": "@swift-travel/database",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node dist/migrations/migrate.js",
+    "db:seed": "node dist/migrations/seed.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "zod": "^3.22.0",
+    "@swift-travel/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
