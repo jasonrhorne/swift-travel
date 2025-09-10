@@ -13,11 +13,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": false,
-    "emitDeclarationOnly": false,
-    "paths": {
-      "@swift-travel/shared": ["../shared/src"],
-      "@swift-travel/database": ["../database/src"]
-    }
+    "emitDeclarationOnly": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "__tests__"]
