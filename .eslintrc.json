@@ -1,7 +1,7 @@
 {
   "extends": [
     "eslint:recommended",
-    "@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended",
     "prettier"
   ],
   "parser": "@typescript-eslint/parser",
@@ -19,15 +19,14 @@
   "rules": {
     "@typescript-eslint/no-unused-vars": "error",
     "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/prefer-const": "error",
-    "prefer-const": "off"
+    "prefer-const": "error"
   },
   "overrides": [
     {
       "files": ["apps/web/**/*.{ts,tsx}"],
       "extends": [
         "eslint:recommended",
-        "@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended",
         "next/core-web-vitals",
         "prettier"
       ],
