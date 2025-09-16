@@ -192,3 +192,6 @@ export interface ItineraryRequest {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Export auth types
+export * from './auth';

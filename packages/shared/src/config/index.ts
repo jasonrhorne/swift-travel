@@ -79,3 +79,6 @@ export function validateConfig() {
   
   console.log(`Configuration loaded for ${config.environment} environment`);
 }
+
+// Export auth config
+export * from './auth';
