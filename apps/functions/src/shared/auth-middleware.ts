@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { authConfig } from '@swift-travel/shared/config/auth';
+import { authConfig } from '@swift-travel/shared/config';
 import type { SessionToken } from '@swift-travel/shared';
 
 // Initialize logger

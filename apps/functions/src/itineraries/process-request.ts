@@ -72,7 +72,7 @@ export async function handler(event: any, context: Context) {
 /**
  * Retrieves itinerary request from Redis
  */
-async function getItineraryRequest(requestId: string): Promise<ItineraryRequest | null> {
+export async function getItineraryRequest(requestId: string): Promise<ItineraryRequest | null> {
   try {
     const data = await redis.get(`itinerary_request:${requestId}`);
     if (!data) {

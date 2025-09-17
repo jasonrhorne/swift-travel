@@ -4,7 +4,7 @@ import Redis from 'ioredis';
 import { randomBytes } from 'crypto';
 import pino from 'pino';
 import { z } from 'zod';
-import { authConfig } from '@swift-travel/shared/config/auth';
+import { authConfig } from '@swift-travel/shared';
 import type { MagicLinkRequest, MagicLinkResponse, AuthError } from '@swift-travel/shared';
 
 // Initialize logger

@@ -4,8 +4,8 @@
 import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
 import { createClient } from '@supabase/supabase-js';
-import { config } from '@swift-travel/shared/config';
 import { 
+  config,
   ItineraryRequest, 
   Itinerary,
   ItineraryStatus,
@@ -13,7 +13,7 @@ import {
   AgentVersions,
   CostEstimate,
   ValidationResults as ItineraryValidationResults
-} from '@swift-travel/shared/types';
+} from '@swift-travel/shared';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
@@ -134,7 +134,8 @@ export async function handler(event: any, context: Context) {
   } catch (error) {
     agentLogger.agentError('response', requestId, error);
     await handleAgentFailure(requestId, 'response', error);
-    return createErrorResponse(500, 'Response processing failed', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return createErrorResponse(500, 'Response processing failed', { error: errorMessage });
   }
 }
 
@@ -149,7 +150,7 @@ async function generateFinalResponse(
 ): Promise<ResponseResult> {
   
   // Calculate processing metrics
-  const processingMetrics = calculateProcessingMetrics(request, validationResults);
+  const processingMetrics = calculateProcessingMetrics(request, validationResults, curationResults);
   
   // Create final itinerary object
   const itinerary = createFinalItinerary(
@@ -169,7 +170,7 @@ async function generateFinalResponse(
 /**
  * Calculates processing metrics from agent logs
  */
-function calculateProcessingMetrics(request: ItineraryRequest, validationResults: any) {
+function calculateProcessingMetrics(request: ItineraryRequest, validationResults: any, curationResults: any) {
   const processingLog = request.processingLog;
   const totalStartTime = request.createdAt.getTime();
   const totalEndTime = Date.now();
@@ -340,7 +341,8 @@ async function storeItinerary(itinerary: Itinerary): Promise<void> {
     }
     
   } catch (error) {
-    throw new Error(`Database storage failed: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Database storage failed: ${errorMessage}`);
   }
 }
 
@@ -361,6 +363,7 @@ async function cleanupRedisData(requestId: string): Promise<void> {
     
   } catch (error) {
     // Non-critical error - log but don't fail the request
-    agentLogger.orchestrationEvent('redis_cleanup_failed', requestId, { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    agentLogger.orchestrationEvent('redis_cleanup_failed', requestId, { error: errorMessage });
   }
 }

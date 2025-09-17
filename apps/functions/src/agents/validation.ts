@@ -3,12 +3,12 @@
 
 import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
-import { config } from '@swift-travel/shared/config';
 import { 
+  config,
   ItineraryRequest, 
   Activity,
   ValidationResult
-} from '@swift-travel/shared/types';
+} from '@swift-travel/shared';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
@@ -130,7 +130,8 @@ export async function handler(event: any, context: Context) {
   } catch (error) {
     agentLogger.agentError('validation', requestId, error);
     await handleAgentFailure(requestId, 'validation', error);
-    return createErrorResponse(500, 'Validation processing failed', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return createErrorResponse(500, 'Validation processing failed', { error: errorMessage });
   }
 }
 
@@ -169,7 +170,7 @@ async function performActivityValidation(activities: Activity[]): Promise<Valida
         googlePlaceId: null,
         lastUpdated: new Date(),
         confidence: 0,
-        issues: [error.message || 'Validation failed']
+        issues: [(error instanceof Error ? error.message : 'Validation failed')]
       };
       
       validatedActivities.push(activity);
@@ -178,10 +179,10 @@ async function performActivityValidation(activities: Activity[]): Promise<Valida
   }
 
   // Calculate validation summary
-  const verifiedCount = validatedActivities.filter(a => a.validation.status === 'verified').length;
-  const pendingCount = validatedActivities.filter(a => a.validation.status === 'pending').length;
-  const failedCount = validatedActivities.filter(a => a.validation.status === 'failed').length;
-  const averageConfidence = validatedActivities.reduce((sum, a) => sum + a.validation.confidence, 0) / validatedActivities.length;
+  const verifiedCount = validatedActivities.filter(a => a.validation?.status === 'verified').length;
+  const pendingCount = validatedActivities.filter(a => a.validation?.status === 'pending').length;
+  const failedCount = validatedActivities.filter(a => a.validation?.status === 'failed').length;
+  const averageConfidence = validatedActivities.reduce((sum, a) => sum + (a.validation?.confidence || 0), 0) / validatedActivities.length;
 
   return {
     validatedActivities,
@@ -246,7 +247,8 @@ async function validateSingleActivity(activity: Activity): Promise<{
     return { validation, updatedLocation };
     
   } catch (error) {
-    throw new Error(`Google Places API error: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Google Places API error: ${errorMessage}`);
   }
 }
 
@@ -288,7 +290,7 @@ async function searchGooglePlaces(
       throw new Error(`Google Places API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (data.status === 'OVER_QUERY_LIMIT') {
       throw new Error('Google Places API rate limit exceeded');
@@ -301,7 +303,8 @@ async function searchGooglePlaces(
     return data.results && data.results.length > 0 ? data.results[0] : null;
     
   } catch (error) {
-    throw new Error(`Failed to search Google Places: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to search Google Places: ${errorMessage}`);
   }
 }
 
@@ -373,7 +376,8 @@ export async function getValidationResults(requestId: string): Promise<Validatio
     const data = await redis.get(key);
     return data ? JSON.parse(data as string) : null;
   } catch (error) {
-    agentLogger.agentError('validation', requestId, new Error(`Failed to retrieve validation results: ${error.message}`));
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    agentLogger.agentError('validation', requestId, new Error(`Failed to retrieve validation results: ${errorMessage}`));
     return null;
   }
 }

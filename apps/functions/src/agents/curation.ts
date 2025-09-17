@@ -4,8 +4,8 @@
 import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
 import OpenAI from 'openai';
-import { config } from '@swift-travel/shared/config';
 import { 
+  config,
   ItineraryRequest, 
   Activity,
   ActivityCategory,
@@ -16,7 +16,7 @@ import {
   PersonaType,
   BudgetRange,
   AccessibilityInfo
-} from '@swift-travel/shared/types';
+} from '@swift-travel/shared';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
@@ -127,7 +127,8 @@ export async function handler(event: any, context: Context) {
   } catch (error) {
     agentLogger.agentError('curation', requestId, error);
     await handleAgentFailure(requestId, 'curation', error);
-    return createErrorResponse(500, 'Curation processing failed', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return createErrorResponse(500, 'Curation processing failed', { error: errorMessage });
   }
 }
 
@@ -167,7 +168,8 @@ async function performItineraryCuration(
     return formatCurationResult(parsedResult, request);
     
   } catch (error) {
-    throw new Error(`OpenAI curation failed: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`OpenAI curation failed: ${errorMessage}`);
   }
 }
 
@@ -367,7 +369,8 @@ export async function getCurationResults(requestId: string): Promise<CurationRes
     const data = await redis.get(key);
     return data ? JSON.parse(data as string) : null;
   } catch (error) {
-    agentLogger.agentError('curation', requestId, new Error(`Failed to retrieve curation results: ${error.message}`));
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    agentLogger.agentError('curation', requestId, new Error(`Failed to retrieve curation results: ${errorMessage}`));
     return null;
   }
 }

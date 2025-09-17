@@ -4,13 +4,13 @@
 import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
 import OpenAI from 'openai';
-import { config } from '@swift-travel/shared/config';
 import { 
+  config,
   ItineraryRequest, 
   UserRequirements,
   PersonaType,
   BudgetRange 
-} from '@swift-travel/shared/types';
+} from '@swift-travel/shared';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
@@ -125,7 +125,8 @@ export async function handler(event: any, context: Context) {
   } catch (error) {
     agentLogger.agentError('research', requestId, error);
     await handleAgentFailure(requestId, 'research', error);
-    return createErrorResponse(500, 'Research processing failed', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return createErrorResponse(500, 'Research processing failed', { error: errorMessage });
   }
 }
 
@@ -162,7 +163,8 @@ async function performDestinationResearch(requirements: UserRequirements): Promi
     return validateAndFormatResearchResult(parsedResult, requirements);
     
   } catch (error) {
-    throw new Error(`OpenAI research failed: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`OpenAI research failed: ${errorMessage}`);
   }
 }
 
@@ -312,7 +314,8 @@ export async function getResearchResults(requestId: string): Promise<ResearchRes
     const data = await redis.get(key);
     return data ? JSON.parse(data as string) : null;
   } catch (error) {
-    agentLogger.agentError('research', requestId, new Error(`Failed to retrieve research results: ${error.message}`));
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    agentLogger.agentError('research', requestId, new Error(`Failed to retrieve research results: ${errorMessage}`));
     return null;
   }
 }

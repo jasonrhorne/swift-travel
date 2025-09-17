@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { HandlerEvent, HandlerContext } from '@netlify/functions';
-import { ItineraryRequest, ProcessingStatus, UserRequirements, PersonaType, BudgetRange } from '@swift-travel/shared/types';
+import type { HandlerEvent, HandlerContext, Context } from '@netlify/functions';
+import { ItineraryRequest, ProcessingStatus, UserRequirements, PersonaType, BudgetRange } from '@swift-travel/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 // Mock all dependencies
@@ -68,7 +68,7 @@ describe('Agent Pipeline Integration Tests', () => {
   let mockRedis: any;
   let mockOpenAI: any;
   let mockEvent: HandlerEvent;
-  let mockContext: HandlerContext;
+  let mockContext: Context;
   let testRequestId: string;
   let mockItineraryRequest: ItineraryRequest;
 
@@ -78,20 +78,7 @@ describe('Agent Pipeline Integration Tests', () => {
     testRequestId = uuidv4();
     
     // Set up mock event and context
-    mockContext = {
-      callbackWaitsForEmptyEventLoop: false,
-      functionName: 'test-function',
-      functionVersion: '1.0',
-      invokedFunctionArn: 'test-arn',
-      memoryLimitInMB: '128',
-      awsRequestId: 'test-request-id',
-      logGroupName: 'test-log-group',
-      logStreamName: 'test-log-stream',
-      getRemainingTimeInMillis: () => 30000,
-      done: vi.fn(),
-      fail: vi.fn(),
-      succeed: vi.fn()
-    };
+    mockContext = {} as Context;
 
     // Create mock itinerary request
     mockItineraryRequest = {
@@ -294,11 +281,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/process-request',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/process-request'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const processResponse = await processRequestHandler(mockEvent, mockContext);
@@ -351,11 +337,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/research',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/research'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const response = await researchHandler(mockEvent, mockContext);
@@ -377,11 +362,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/research',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/research'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const response = await researchHandler(mockEvent, mockContext);
@@ -405,11 +389,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/validation',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/validation'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       // Should complete but with failed validations
@@ -429,11 +412,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/research',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/research'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const response = await researchHandler(mockEvent, mockContext);
@@ -452,11 +434,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/research',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/research'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const response = await researchHandler(mockEvent, mockContext);
@@ -473,11 +454,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/research',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/research'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const response = await researchHandler(mockEvent, mockContext);
@@ -496,11 +476,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/process-request',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/process-request'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       const response = await processRequestHandler(mockEvent, mockContext);
@@ -525,11 +504,10 @@ describe('Agent Pipeline Integration Tests', () => {
         multiValueHeaders: {},
         isBase64Encoded: false,
         path: '/research',
-        pathParameters: {},
         queryStringParameters: {},
         multiValueQueryStringParameters: {},
-        requestContext: {} as any,
-        resource: '/research'
+        rawUrl: 'http://localhost/.netlify/functions/test',
+        rawQuery: '',
       };
 
       await researchHandler(mockEvent, mockContext);

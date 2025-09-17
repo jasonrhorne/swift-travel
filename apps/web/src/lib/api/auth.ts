@@ -73,7 +73,7 @@ async function apiRequest<T>(
       'Network request failed',
       'NETWORK_ERROR',
       0,
-      { originalError: error.message }
+      { originalError: error instanceof Error ? error.message : 'Unknown error' }
     );
   }
 }

@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import pino from 'pino';
-import { authConfig } from '@swift-travel/shared/config/auth';
+import { authConfig } from '@swift-travel/shared';
 import type { SessionToken, AuthError } from '@swift-travel/shared';
 
 // Initialize logger
