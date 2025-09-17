@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import pino from 'pino';
 import { z } from 'zod';
-import { authConfig } from '@swift-travel/shared/config/auth';
+import { authConfig } from '@swift-travel/shared';
 import { validateSession, createAuthErrorResponse } from '../shared/auth-middleware';
 import type { User, UserPreferences, AuthError } from '@swift-travel/shared';
 

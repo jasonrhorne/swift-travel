@@ -46,9 +46,11 @@ vi.mock('../../shared/response', () => ({
 
 vi.mock('../../shared/logger', () => ({
   agentLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn()
+    agentStart: vi.fn(),
+    agentComplete: vi.fn(),
+    agentError: vi.fn(),
+    orchestrationEvent: vi.fn(),
+    timeout: vi.fn()
   }
 }));
 
