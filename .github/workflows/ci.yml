@@ -138,9 +138,23 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://test.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'test-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'test-service-key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'test-openai-key' }}
+          REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379' }}
+          REDIS_TOKEN: ${{ secrets.REDIS_TOKEN || 'test-redis-token' }}
 
       - name: Run function tests
         run: npm run test:functions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://test.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'test-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'test-service-key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'test-openai-key' }}
+          REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379' }}
+          REDIS_TOKEN: ${{ secrets.REDIS_TOKEN || 'test-redis-token' }}
 
   # Build test
   build:
@@ -172,7 +186,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |
@@ -202,7 +216,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-artifacts
 
@@ -213,7 +227,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Upload Playwright Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
@@ -236,7 +250,7 @@ jobs:
           cache: 'npm'
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-artifacts
 
@@ -265,7 +279,7 @@ jobs:
           cache: 'npm'
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-artifacts
 

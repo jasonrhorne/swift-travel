@@ -1,8 +1,12 @@
-export type PersonaType = 'photography' | 'food-forward' | 'architecture' | 'family';
+export type PersonaType =
+  | 'photography'
+  | 'food-forward'
+  | 'architecture'
+  | 'family';
 export type BudgetRange = 'budget' | 'mid-range' | 'luxury' | 'no-limit';
-export type ProcessingStatus = 
-  | 'initiated' 
-  | 'research-in-progress' 
+export type ProcessingStatus =
+  | 'initiated'
+  | 'research-in-progress'
   | 'research-completed'
   | 'curation-in-progress'
   | 'curation-completed'
@@ -11,6 +15,20 @@ export type ProcessingStatus =
   | 'response-in-progress'
   | 'completed'
   | 'failed';
+
+export type AgentProcessingLog =
+  | 'research'
+  | 'curation'
+  | 'validation'
+  | 'response';
+
+export interface ProcessingError {
+  message: string;
+  code: string;
+  timestamp: Date;
+  agent?: string;
+  details?: any;
+}
 
 export interface UserPreferences {
   defaultPersona: PersonaType | null;
@@ -56,7 +74,14 @@ export interface ItineraryRequest {
 }
 
 // Additional types for agent system
-export type ActivityCategory = 'food' | 'sightseeing' | 'activity' | 'transport' | 'accommodation' | 'shopping' | 'entertainment';
+export type ActivityCategory =
+  | 'food'
+  | 'sightseeing'
+  | 'activity'
+  | 'transport'
+  | 'accommodation'
+  | 'shopping'
+  | 'entertainment';
 export type ItineraryStatus = 'draft' | 'validated' | 'finalized' | 'archived';
 
 export interface ActivityTiming {

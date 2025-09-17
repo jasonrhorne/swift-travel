@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { HandlerEvent, HandlerContext, Context } from '@netlify/functions';
-import { ItineraryRequest, ProcessingStatus, UserRequirements, PersonaType, BudgetRange } from '@swift-travel/shared';
+import type { HandlerEvent } from '@netlify/functions';
+import {
+  ItineraryRequest,
+  ProcessingStatus,
+  UserRequirements,
+  PersonaType,
+  BudgetRange,
+} from '@swift-travel/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 // Mock all dependencies
@@ -9,18 +15,18 @@ vi.mock('@upstash/redis', () => ({
     get: vi.fn(),
     set: vi.fn(),
     setex: vi.fn(),
-    del: vi.fn()
-  }))
+    del: vi.fn(),
+  })),
 }));
 
 vi.mock('openai', () => ({
   default: vi.fn().mockImplementation(() => ({
     chat: {
       completions: {
-        create: vi.fn()
-      }
-    }
-  }))
+        create: vi.fn(),
+      },
+    },
+  })),
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -29,11 +35,11 @@ vi.mock('@supabase/supabase-js', () => ({
       insert: vi.fn().mockReturnValue({ error: null }),
       select: () => ({
         eq: () => ({
-          single: vi.fn()
-        })
-      })
-    })
-  })
+          single: vi.fn(),
+        }),
+      }),
+    }),
+  }),
 }));
 
 vi.mock('@swift-travel/shared/config', () => ({
@@ -42,16 +48,16 @@ vi.mock('@swift-travel/shared/config', () => ({
     api: {
       openaiApiKey: 'mock-openai-key',
       googlePlacesApiKey: 'mock-google-key',
-      internalApiKey: 'mock-internal-key'
+      internalApiKey: 'mock-internal-key',
     },
     database: {
       url: 'mock://supabase',
-      serviceRoleKey: 'mock-service-key'
+      serviceRoleKey: 'mock-service-key',
     },
     frontend: {
-      baseUrl: 'http://localhost:8888/.netlify/functions'
-    }
-  }
+      baseUrl: 'http://localhost:8888/.netlify/functions',
+    },
+  },
 }));
 
 // Mock fetch for Google Places API
@@ -68,17 +74,17 @@ describe('Agent Pipeline Integration Tests', () => {
   let mockRedis: any;
   let mockOpenAI: any;
   let mockEvent: HandlerEvent;
-  let mockContext: Context;
+  // let mockContext: Context;
   let testRequestId: string;
   let mockItineraryRequest: ItineraryRequest;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     testRequestId = uuidv4();
-    
+
     // Set up mock event and context
-    mockContext = {} as Context;
+    // mockContext = {} as Context;
 
     // Create mock itinerary request
     mockItineraryRequest = {
@@ -90,115 +96,123 @@ describe('Agent Pipeline Integration Tests', () => {
         persona: 'photography' as PersonaType,
         dates: {
           startDate: new Date('2024-06-01'),
-          endDate: new Date('2024-06-05')
+          endDate: new Date('2024-06-05'),
         },
         budgetRange: 'mid-range' as BudgetRange,
         groupSize: 2,
         specialRequests: ['romantic spots'],
-        accessibilityNeeds: []
+        accessibilityNeeds: [],
       } as UserRequirements,
       processingLog: [],
       status: 'initiated' as ProcessingStatus,
       errorDetails: null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
-    // Mock Redis responses
-    const { Redis } = require('@upstash/redis');
-    mockRedis = new Redis();
-    
+    // Setup Redis mock
+    mockRedis = {
+      get: vi.fn(),
+      set: vi.fn(),
+      setex: vi.fn(),
+      del: vi.fn(),
+    } as any;
+
     mockRedis.get.mockImplementation((key: string) => {
       if (key === `itinerary_request:${testRequestId}`) {
         return Promise.resolve(JSON.stringify(mockItineraryRequest));
       }
       if (key.startsWith('research_results:')) {
-        return Promise.resolve(JSON.stringify({
-          destination: {
-            name: 'Paris',
-            city: 'Paris',
-            region: 'Île-de-France',
-            country: 'France',
-            timeZone: 'Europe/Paris',
-            coordinates: { lat: 48.8566, lng: 2.3522 }
-          },
-          contextData: {
-            culture: ['French culture', 'Art museums'],
-            cuisine: ['French cuisine', 'Cafés'],
-            attractions: ['Eiffel Tower', 'Louvre'],
-            neighborhoods: ['Marais', 'Montmartre'],
-            transportation: ['Metro', 'Walking'],
-            seasonalConsiderations: ['Pleasant summer weather'],
-            budgetInsights: {
-              'mid-range': 'Expect €100-200 per day per person'
-            }
-          },
-          personaRecommendations: {
-            photography: {
-              focus: ['Golden hour at Eiffel Tower'],
-              recommendations: ['Sunrise at Trocadéro'],
-              warnings: ['No tripods in museums']
-            }
-          },
-          confidence: 0.95
-        }));
+        return Promise.resolve(
+          JSON.stringify({
+            destination: {
+              name: 'Paris',
+              city: 'Paris',
+              region: 'Île-de-France',
+              country: 'France',
+              timeZone: 'Europe/Paris',
+              coordinates: { lat: 48.8566, lng: 2.3522 },
+            },
+            contextData: {
+              culture: ['French culture', 'Art museums'],
+              cuisine: ['French cuisine', 'Cafés'],
+              attractions: ['Eiffel Tower', 'Louvre'],
+              neighborhoods: ['Marais', 'Montmartre'],
+              transportation: ['Metro', 'Walking'],
+              seasonalConsiderations: ['Pleasant summer weather'],
+              budgetInsights: {
+                'mid-range': 'Expect €100-200 per day per person',
+              },
+            },
+            personaRecommendations: {
+              photography: {
+                focus: ['Golden hour at Eiffel Tower'],
+                recommendations: ['Sunrise at Trocadéro'],
+                warnings: ['No tripods in museums'],
+              },
+            },
+            confidence: 0.95,
+          })
+        );
       }
       if (key.startsWith('curation_results:')) {
-        return Promise.resolve(JSON.stringify({
-          activities: [
-            {
-              id: uuidv4(),
-              itineraryId: '',
-              name: 'Eiffel Tower Photography',
-              description: 'Golden hour photography session',
-              category: 'sightseeing',
-              timing: {
-                dayNumber: 1,
-                startTime: '07:00',
-                duration: 120,
-                flexibility: 'weather-dependent',
-                bufferTime: 30
+        return Promise.resolve(
+          JSON.stringify({
+            activities: [
+              {
+                id: uuidv4(),
+                itineraryId: '',
+                name: 'Eiffel Tower Photography',
+                description: 'Golden hour photography session',
+                category: 'sightseeing',
+                timing: {
+                  dayNumber: 1,
+                  startTime: '07:00',
+                  duration: 120,
+                  flexibility: 'weather-dependent',
+                  bufferTime: 30,
+                },
+                location: {
+                  name: 'Eiffel Tower',
+                  address: 'Champ de Mars, Paris',
+                  coordinates: { lat: 48.8584, lng: 2.2945 },
+                  neighborhood: 'Champ de Mars',
+                  googlePlaceId: null,
+                  accessibility: {
+                    wheelchairAccessible: true,
+                    hearingAssistance: false,
+                    visualAssistance: false,
+                    notes: [],
+                  },
+                },
+                validation: {
+                  status: 'pending',
+                  googlePlaceId: null,
+                  lastUpdated: new Date(),
+                  confidence: 0,
+                  issues: [],
+                },
+                personaContext: {
+                  reasoning: 'Perfect for photography enthusiasts',
+                  highlights: ['Iconic architecture'],
+                  tips: ['Best light in early morning'],
+                },
               },
-              location: {
-                name: 'Eiffel Tower',
-                address: 'Champ de Mars, Paris',
-                coordinates: { lat: 48.8584, lng: 2.2945 },
-                neighborhood: 'Champ de Mars',
-                googlePlaceId: null,
-                accessibility: {
-                  wheelchairAccessible: true,
-                  hearingAssistance: false,
-                  visualAssistance: false,
-                  notes: []
-                }
-              },
-              validation: {
-                status: 'pending',
-                googlePlaceId: null,
-                lastUpdated: new Date(),
-                confidence: 0,
-                issues: []
-              },
-              personaContext: {
-                reasoning: 'Perfect for photography enthusiasts',
-                highlights: ['Iconic architecture'],
-                tips: ['Best light in early morning']
-              }
-            }
-          ],
-          itineraryOverview: {
-            totalActivities: 1,
-            estimatedCost: { min: 50, max: 100, currency: 'EUR' },
-            themes: ['Photography'],
-            highlights: ['Iconic Paris landmarks']
-          },
-          curationMetadata: {
-            personaAdherence: 0.95,
-            budgetAlignment: 0.90,
-            logisticalScore: 0.85,
-            diversityScore: 0.80
-          }
-        }));
+            ],
+            itineraryOverview: {
+              totalActivities: 1,
+              estimatedCost: { min: 50, max: 100, currency: 'EUR' },
+              themes: ['Photography'],
+              highlights: ['Iconic Paris landmarks'],
+            },
+            curationMetadata: {
+              personaAdherence: 0.95,
+              budgetAlignment: 0.9,
+              logisticalScore: 0.85,
+              diversityScore: 0.8,
+            },
+          })
+        );
       }
       return Promise.resolve(null);
     });
@@ -207,63 +221,74 @@ describe('Agent Pipeline Integration Tests', () => {
     mockRedis.setex.mockResolvedValue('OK');
     mockRedis.del.mockResolvedValue(1);
 
-    // Mock OpenAI responses
-    const OpenAI = require('openai').default;
-    mockOpenAI = new OpenAI();
-    
+    // Setup OpenAI mock
+    mockOpenAI = {
+      chat: {
+        completions: {
+          create: vi.fn(),
+        },
+      },
+    } as any;
+
     mockOpenAI.chat.completions.create.mockResolvedValue({
-      choices: [{
-        message: {
-          content: JSON.stringify({
-            destination: {
-              name: 'Paris',
-              city: 'Paris',
-              region: 'Île-de-France',
-              country: 'France',
-              timeZone: 'Europe/Paris',
-              coordinates: { lat: 48.8566, lng: 2.3522 }
-            },
-            contextData: {
-              culture: ['French culture'],
-              cuisine: ['French cuisine'],
-              attractions: ['Eiffel Tower'],
-              neighborhoods: ['Marais'],
-              transportation: ['Metro'],
-              seasonalConsiderations: ['Summer weather'],
-              budgetInsights: {
-                'mid-range': 'Expect €100-200 per day'
-              }
-            },
-            personaRecommendations: {
-              photography: {
-                focus: ['Golden hour spots'],
-                recommendations: ['Eiffel Tower sunrise'],
-                warnings: ['No tripods in museums']
-              }
-            },
-            confidence: 0.95
-          })
-        }
-      }]
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              destination: {
+                name: 'Paris',
+                city: 'Paris',
+                region: 'Île-de-France',
+                country: 'France',
+                timeZone: 'Europe/Paris',
+                coordinates: { lat: 48.8566, lng: 2.3522 },
+              },
+              contextData: {
+                culture: ['French culture'],
+                cuisine: ['French cuisine'],
+                attractions: ['Eiffel Tower'],
+                neighborhoods: ['Marais'],
+                transportation: ['Metro'],
+                seasonalConsiderations: ['Summer weather'],
+                budgetInsights: {
+                  'mid-range': 'Expect €100-200 per day',
+                },
+              },
+              personaRecommendations: {
+                photography: {
+                  focus: ['Golden hour spots'],
+                  recommendations: ['Eiffel Tower sunrise'],
+                  warnings: ['No tripods in museums'],
+                },
+              },
+              confidence: 0.95,
+            }),
+          },
+        },
+      ],
     });
 
     // Mock Google Places API
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        status: 'OK',
-        results: [{
-          place_id: 'test-place-id',
-          name: 'Eiffel Tower',
-          formatted_address: 'Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France',
-          geometry: {
-            location: { lat: 48.8584, lng: 2.2945 }
-          },
-          rating: 4.6,
-          types: ['tourist_attraction'],
-          business_status: 'OPERATIONAL'
-        }]
-      })
+      json: () =>
+        Promise.resolve({
+          status: 'OK',
+          results: [
+            {
+              place_id: 'test-place-id',
+              name: 'Eiffel Tower',
+              formatted_address:
+                'Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France',
+              geometry: {
+                location: { lat: 48.8584, lng: 2.2945 },
+              },
+              rating: 4.6,
+              types: ['tourist_attraction'],
+              business_status: 'OPERATIONAL',
+            },
+          ],
+        }),
     });
   });
 
@@ -287,7 +312,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const processResponse = await processRequestHandler(mockEvent, mockContext);
+      const processResponse = await processRequestHandler(mockEvent);
       expect(processResponse.statusCode).toBe(200);
       const processData = JSON.parse(processResponse.body);
       expect(processData.success).toBe(true);
@@ -295,35 +320,37 @@ describe('Agent Pipeline Integration Tests', () => {
 
       // 2. Research Agent
       mockEvent.body = JSON.stringify({ requestId: testRequestId });
-      const researchResponse = await researchHandler(mockEvent, mockContext);
+      const researchResponse = await researchHandler(mockEvent);
       expect(researchResponse.statusCode).toBe(200);
       const researchData = JSON.parse(researchResponse.body);
       expect(researchData.success).toBe(true);
       expect(researchData.data.status).toBe('research-completed');
 
       // 3. Curation Agent
-      const curationResponse = await curationHandler(mockEvent, mockContext);
+      const curationResponse = await curationHandler(mockEvent);
       expect(curationResponse.statusCode).toBe(200);
       const curationData = JSON.parse(curationResponse.body);
       expect(curationData.success).toBe(true);
       expect(curationData.data.status).toBe('curation-completed');
 
       // 4. Validation Agent
-      const validationResponse = await validationHandler(mockEvent, mockContext);
+      const validationResponse = await validationHandler(mockEvent);
       expect(validationResponse.statusCode).toBe(200);
       const validationData = JSON.parse(validationResponse.body);
       expect(validationData.success).toBe(true);
       expect(validationData.data.status).toBe('validation-completed');
 
       // 5. Response Agent
-      const responseResponse = await responseHandler(mockEvent, mockContext);
+      const responseResponse = await responseHandler(mockEvent);
       expect(responseResponse.statusCode).toBe(200);
       const responseData = JSON.parse(responseResponse.body);
       expect(responseData.success).toBe(true);
       expect(responseData.data.status).toBe('completed');
 
       // Verify Redis calls
-      expect(mockRedis.get).toHaveBeenCalledWith(`itinerary_request:${testRequestId}`);
+      expect(mockRedis.get).toHaveBeenCalledWith(
+        `itinerary_request:${testRequestId}`
+      );
       expect(mockRedis.setex).toHaveBeenCalled();
     });
 
@@ -343,7 +370,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const response = await researchHandler(mockEvent, mockContext);
+      const response = await researchHandler(mockEvent);
       expect(response.statusCode).toBe(500);
       const data = JSON.parse(response.body);
       expect(data.success).toBe(false);
@@ -353,7 +380,9 @@ describe('Agent Pipeline Integration Tests', () => {
 
   describe('Error Handling and Recovery', () => {
     it('should handle OpenAI API failures gracefully', async () => {
-      mockOpenAI.chat.completions.create.mockRejectedValue(new Error('OpenAI API Error'));
+      mockOpenAI.chat.completions.create.mockRejectedValue(
+        new Error('OpenAI API Error')
+      );
 
       mockEvent = {
         httpMethod: 'POST',
@@ -368,7 +397,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const response = await researchHandler(mockEvent, mockContext);
+      const response = await researchHandler(mockEvent);
       expect(response.statusCode).toBe(500);
       const data = JSON.parse(response.body);
       expect(data.success).toBe(false);
@@ -379,7 +408,7 @@ describe('Agent Pipeline Integration Tests', () => {
       (global.fetch as any).mockResolvedValue({
         ok: false,
         status: 500,
-        json: () => Promise.resolve({ error: 'API Error' })
+        json: () => Promise.resolve({ error: 'API Error' }),
       });
 
       mockEvent = {
@@ -396,7 +425,7 @@ describe('Agent Pipeline Integration Tests', () => {
       };
 
       // Should complete but with failed validations
-      const response = await validationHandler(mockEvent, mockContext);
+      const response = await validationHandler(mockEvent);
       expect(response.statusCode).toBe(200);
       const data = JSON.parse(response.body);
       expect(data.success).toBe(true);
@@ -418,7 +447,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const response = await researchHandler(mockEvent, mockContext);
+      const response = await researchHandler(mockEvent);
       expect(response.statusCode).toBe(500);
       const data = JSON.parse(response.body);
       expect(data.success).toBe(false);
@@ -440,7 +469,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const response = await researchHandler(mockEvent, mockContext);
+      const response = await researchHandler(mockEvent);
       expect(response.statusCode).toBe(500);
       const data = JSON.parse(response.body);
       expect(data.success).toBe(false);
@@ -460,7 +489,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const response = await researchHandler(mockEvent, mockContext);
+      const response = await researchHandler(mockEvent);
       expect(response.statusCode).toBe(500);
       const data = JSON.parse(response.body);
       expect(data.success).toBe(false);
@@ -482,7 +511,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      const response = await processRequestHandler(mockEvent, mockContext);
+      const response = await processRequestHandler(mockEvent);
       expect(response.statusCode).toBe(200);
 
       // Verify timeout monitoring was set
@@ -510,7 +539,7 @@ describe('Agent Pipeline Integration Tests', () => {
         rawQuery: '',
       };
 
-      await researchHandler(mockEvent, mockContext);
+      await researchHandler(mockEvent);
 
       // Verify research results were stored
       expect(mockRedis.setex).toHaveBeenCalledWith(
@@ -519,7 +548,7 @@ describe('Agent Pipeline Integration Tests', () => {
         expect.any(String)
       );
 
-      await curationHandler(mockEvent, mockContext);
+      await curationHandler(mockEvent);
 
       // Verify curation results were stored
       expect(mockRedis.setex).toHaveBeenCalledWith(

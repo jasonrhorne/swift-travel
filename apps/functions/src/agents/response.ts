@@ -1,26 +1,25 @@
 // Response Agent - Final itinerary formatting and database storage
 // Based on story 1.3 requirements for response agent implementation
 
-import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
 import { createClient } from '@supabase/supabase-js';
-import { 
+import {
   config,
-  ItineraryRequest, 
+  ItineraryRequest,
   Itinerary,
   ItineraryStatus,
   ItineraryMetadata,
   AgentVersions,
   CostEstimate,
-  ValidationResults as ItineraryValidationResults
+  ValidationResults as ItineraryValidationResults,
 } from '@swift-travel/shared';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
-import { 
-  getItineraryRequest, 
+import {
+  getItineraryRequest,
   completeAgentProcessing,
-  handleAgentFailure 
+  handleAgentFailure,
 } from '../itineraries/process-request';
 import { getResearchResults } from './research';
 import { getCurationResults } from './curation';
@@ -54,21 +53,21 @@ interface ResponseResult {
 /**
  * Response Agent handler - formats and stores final itinerary
  */
-export async function handler(event: any, context: Context) {
+export async function handler(event: any) {
   const startTime = Date.now();
   let requestId: string = '';
-  
+
   try {
     // Validate authentication
     requireInternalAuth(event);
-    
+
     if (event.httpMethod !== 'POST') {
       return createErrorResponse(405, 'Method not allowed', {});
     }
 
     const body = JSON.parse(event.body || '{}') as ResponseRequestBody;
     requestId = body.requestId;
-    
+
     if (!requestId) {
       return createErrorResponse(400, 'Missing requestId', {});
     }
@@ -91,31 +90,31 @@ export async function handler(event: any, context: Context) {
 
     // Generate final response
     const responseResult = await generateFinalResponse(
-      request, 
-      researchResults, 
-      curationResults, 
+      request,
+      researchResults,
+      curationResults,
       validationResults
     );
-    
+
     // Store in Supabase database
     await storeItinerary(responseResult.itinerary);
-    
+
     // Complete this agent's processing (final step)
     await completeAgentProcessing(requestId, 'response', {
       responseCompleted: true,
       itineraryId: responseResult.itinerary.id,
       qualityScore: responseResult.processingMetrics.qualityScore,
-      totalDuration: responseResult.processingMetrics.totalDuration
+      totalDuration: responseResult.processingMetrics.totalDuration,
     });
 
     // Clean up Redis data (optional - could keep for analytics)
     await cleanupRedisData(requestId);
 
     const duration = Date.now() - startTime;
-    agentLogger.agentComplete('response', requestId, duration, { 
+    agentLogger.agentComplete('response', requestId, duration, {
       itineraryId: responseResult.itinerary.id,
       activitiesCount: responseResult.itinerary.activities.length,
-      qualityScore: responseResult.processingMetrics.qualityScore
+      qualityScore: responseResult.processingMetrics.qualityScore,
     });
 
     return createSuccessResponse({
@@ -125,17 +124,19 @@ export async function handler(event: any, context: Context) {
         id: responseResult.itinerary.id,
         destination: responseResult.itinerary.destination,
         activities: responseResult.itinerary.activities.length,
-        qualityScore: responseResult.itinerary.metadata.qualityScore
+        qualityScore: responseResult.itinerary.metadata.qualityScore,
       },
       processingMetrics: responseResult.processingMetrics,
-      processingTime: duration
+      processingTime: duration,
     });
-
   } catch (error) {
     agentLogger.agentError('response', requestId, error);
     await handleAgentFailure(requestId, 'response', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return createErrorResponse(500, 'Response processing failed', { error: errorMessage });
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
+    return createErrorResponse(500, 'Response processing failed', {
+      error: errorMessage,
+    });
   }
 }
 
@@ -148,10 +149,13 @@ async function generateFinalResponse(
   curationResults: any,
   validationResults: any
 ): Promise<ResponseResult> {
-  
   // Calculate processing metrics
-  const processingMetrics = calculateProcessingMetrics(request, validationResults, curationResults);
-  
+  const processingMetrics = calculateProcessingMetrics(
+    request,
+    validationResults,
+    curationResults
+  );
+
   // Create final itinerary object
   const itinerary = createFinalItinerary(
     request,
@@ -160,45 +164,50 @@ async function generateFinalResponse(
     validationResults,
     processingMetrics
   );
-  
+
   return {
     itinerary,
-    processingMetrics
+    processingMetrics,
   };
 }
 
 /**
  * Calculates processing metrics from agent logs
  */
-function calculateProcessingMetrics(request: ItineraryRequest, validationResults: any, curationResults: any) {
+function calculateProcessingMetrics(
+  request: ItineraryRequest,
+  validationResults: any,
+  curationResults: any
+) {
   const processingLog = request.processingLog;
   const totalStartTime = request.createdAt.getTime();
   const totalEndTime = Date.now();
   const totalDuration = totalEndTime - totalStartTime;
-  
+
   // Calculate individual agent durations
   const agentDurations: Record<string, number> = {};
   processingLog.forEach(log => {
     if (log.endTime && log.startTime) {
-      agentDurations[log.agent] = log.endTime.getTime() - log.startTime.getTime();
+      agentDurations[log.agent] =
+        log.endTime.getTime() - log.startTime.getTime();
     }
   });
-  
+
   // API calls used (from validation results)
   const apiCallsUsed = validationResults.apiUsage?.placesApiCalls || 0;
-  
+
   // Calculate quality score (composite of various factors)
   const qualityScore = calculateQualityScore(
     validationResults.validationSummary?.averageConfidence || 0.5,
     curationResults.curationMetadata?.personaAdherence || 0.8,
     totalDuration
   );
-  
+
   return {
     totalDuration,
     agentDurations,
     apiCallsUsed,
-    qualityScore
+    qualityScore,
   };
 }
 
@@ -211,16 +220,16 @@ function calculateQualityScore(
   processingTime: number
 ): number {
   // Base quality from validation and persona adherence
-  const baseQuality = (validationConfidence * 0.4) + (personaAdherence * 0.4);
-  
+  const baseQuality = validationConfidence * 0.4 + personaAdherence * 0.4;
+
   // Time penalty (processing should be under 20 seconds)
   const timePenalty = processingTime > 20000 ? 0.1 : 0;
-  
+
   // Processing efficiency bonus
   const efficiencyBonus = processingTime < 15000 ? 0.1 : 0;
-  
+
   const finalScore = baseQuality + 0.2 + efficiencyBonus - timePenalty;
-  
+
   return Math.min(Math.max(finalScore, 0), 1);
 }
 
@@ -234,15 +243,16 @@ function createFinalItinerary(
   validationResults: any,
   processingMetrics: any
 ): Itinerary {
-  
   const itineraryId = uuidv4();
-  
+
   // Update activity IDs with the final itinerary ID
-  const activities = validationResults.validatedActivities.map((activity: any) => ({
-    ...activity,
-    itineraryId
-  }));
-  
+  const activities = validationResults.validatedActivities.map(
+    (activity: any) => ({
+      ...activity,
+      itineraryId,
+    })
+  );
+
   // Create cost estimate
   const costEstimate: CostEstimate = {
     min: curationResults.itineraryOverview.estimatedCost.min || 0,
@@ -251,10 +261,10 @@ function createFinalItinerary(
     breakdown: {
       activities: curationResults.itineraryOverview.estimatedCost.max * 0.6,
       dining: curationResults.itineraryOverview.estimatedCost.max * 0.25,
-      transport: curationResults.itineraryOverview.estimatedCost.max * 0.15
-    }
+      transport: curationResults.itineraryOverview.estimatedCost.max * 0.15,
+    },
   };
-  
+
   // Create validation results summary
   const validationResultsSummary: ItineraryValidationResults = {
     overallScore: validationResults.validationSummary.averageConfidence,
@@ -262,27 +272,27 @@ function createFinalItinerary(
       locationVerified: validationResults.validationSummary.verifiedCount > 0,
       timingRealistic: curationResults.curationMetadata.logisticalScore > 0.7,
       accessibilityChecked: true,
-      costEstimated: costEstimate.max > 0
-    }
+      costEstimated: costEstimate.max > 0,
+    },
   };
-  
+
   // Create agent versions
   const agentVersions: AgentVersions = {
     research: '1.0.0',
     curation: '1.0.0',
     validation: '1.0.0',
-    response: '1.0.0'
+    response: '1.0.0',
   };
-  
+
   // Create metadata
   const metadata: ItineraryMetadata = {
     processingTimeSeconds: Math.round(processingMetrics.totalDuration / 1000),
     agentVersions,
     qualityScore: processingMetrics.qualityScore,
     validationResults: validationResultsSummary,
-    costEstimate
+    costEstimate,
   };
-  
+
   return {
     id: itineraryId,
     userId: request.userId,
@@ -292,7 +302,7 @@ function createFinalItinerary(
     activities,
     metadata,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
   };
 }
 
@@ -312,13 +322,13 @@ async function storeItinerary(itinerary: Itinerary): Promise<void> {
         status: itinerary.status,
         metadata: itinerary.metadata,
         created_at: itinerary.createdAt.toISOString(),
-        updated_at: itinerary.updatedAt.toISOString()
+        updated_at: itinerary.updatedAt.toISOString(),
       });
-      
+
     if (itineraryError) {
       throw new Error(`Failed to store itinerary: ${itineraryError.message}`);
     }
-    
+
     // Store activities
     const activitiesData = itinerary.activities.map(activity => ({
       id: activity.id,
@@ -329,19 +339,19 @@ async function storeItinerary(itinerary: Itinerary): Promise<void> {
       timing: activity.timing,
       location: activity.location,
       validation: activity.validation,
-      persona_context: activity.personaContext
+      persona_context: activity.personaContext,
     }));
-    
+
     const { error: activitiesError } = await supabase
       .from('activities')
       .insert(activitiesData);
-      
+
     if (activitiesError) {
       throw new Error(`Failed to store activities: ${activitiesError.message}`);
     }
-    
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Database storage failed: ${errorMessage}`);
   }
 }
@@ -356,14 +366,16 @@ async function cleanupRedisData(requestId: string): Promise<void> {
       `research_results:${requestId}`,
       `curation_results:${requestId}`,
       `validation_results:${requestId}`,
-      `processing_timeout:${requestId}`
+      `processing_timeout:${requestId}`,
     ];
-    
+
     await Promise.all(keys.map(key => redis.del(key)));
-    
   } catch (error) {
     // Non-critical error - log but don't fail the request
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    agentLogger.orchestrationEvent('redis_cleanup_failed', requestId, { error: errorMessage });
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    agentLogger.orchestrationEvent('redis_cleanup_failed', requestId, {
+      error: errorMessage,
+    });
   }
 }
