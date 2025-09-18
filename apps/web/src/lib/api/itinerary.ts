@@ -1,4 +1,4 @@
-import type { UserRequirements, ItineraryRequest } from '@swift-travel/shared';
+import type { UserRequirements, ItineraryRequest, Itinerary, ProcessingStatus } from '@swift-travel/shared';
 
 // API response types
 export interface ItinerarySubmissionResponse {
@@ -26,6 +26,22 @@ export interface ItineraryStatusResponse {
     code: string;
     message: string;
   };
+}
+
+export interface ItineraryResponse {
+  success: boolean;
+  data?: Itinerary;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+export interface ProgressEvent {
+  stage: ProcessingStatus;
+  message: string;
+  progress: number;
+  estimatedTimeRemaining?: number;
 }
 
 // API error class
@@ -210,6 +226,53 @@ class ItineraryAPI {
       };
     }
   }
+
+  /**
+   * Get a specific itinerary by ID
+   */
+  async getItinerary(itineraryId: string): Promise<ItineraryResponse> {
+    try {
+      const response = await this.request<ItineraryResponse>(
+        `/itineraries/${itineraryId}`,
+        {},
+        10000 // Longer timeout for larger itinerary data
+      );
+      
+      return response;
+    } catch (error) {
+      if (error instanceof ItineraryAPIError) {
+        return {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        };
+      }
+      
+      return {
+        success: false,
+        error: {
+          code: 'UNKNOWN_ERROR',
+          message: 'Failed to retrieve itinerary.',
+        },
+      };
+    }
+  }
+
+  /**
+   * Create EventSource for real-time progress tracking
+   */
+  createProgressEventSource(requestId: string): EventSource {
+    const token = this.getAuthToken();
+    const url = new URL(`${this.baseUrl}/itineraries/${requestId}/progress`);
+    
+    if (token) {
+      url.searchParams.append('token', token);
+    }
+    
+    return new EventSource(url.toString());
+  }
 }
 
 // Create singleton instance
@@ -224,3 +287,9 @@ export const getItineraryRequestStatus = (requestId: string) =>
 
 export const cancelItineraryRequest = (requestId: string) =>
   itineraryAPI.cancelRequest(requestId);
+
+export const getItinerary = (itineraryId: string) =>
+  itineraryAPI.getItinerary(itineraryId);
+
+export const createProgressEventSource = (requestId: string) =>
+  itineraryAPI.createProgressEventSource(requestId);

@@ -227,7 +227,7 @@ export default function RequirementsIntakeForm() {
             </div>
             
             <button
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={() => window.location.href = `/itinerary/${requestId}`}
               className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
             >
               View Progress
