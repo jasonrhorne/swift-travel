@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import pino from 'pino';
 import { z } from 'zod';
 import { authConfig } from '@swift-travel/shared/config/auth';
-import type { VerifyTokenRequest, VerifyTokenResponse, User, AuthError, SessionToken } from '@swift-travel/shared';
+import type { VerifyTokenResponse, User, AuthError, SessionToken } from '@swift-travel/shared';
 
 // Initialize logger
 const logger = pino({

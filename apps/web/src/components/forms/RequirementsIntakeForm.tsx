@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRequirementsStore } from '@/stores/requirementsStore';
 import { 
   userRequirementsSchema,
@@ -9,11 +9,7 @@ import {
   personaStepSchema,
   preferencesStepSchema,
   requestsStepSchema,
-  formatValidationError,
-  sanitizeStringInput,
-  sanitizeArrayInput,
-  type PersonaType,
-  type BudgetRange
+  formatValidationError
 } from '@swift-travel/shared';
 import { submitItineraryRequirements } from '@/lib/api/itinerary';
 import { z } from 'zod';
@@ -174,7 +170,7 @@ export default function RequirementsIntakeForm() {
       
       // Optional: Send performance metrics to monitoring service
       if (typeof window !== 'undefined' && 'gtag' in window) {
-        (window as any).gtag('event', 'form_submission_performance', {
+        (window as { gtag: (command: string, eventName: string, parameters: Record<string, unknown>) => void }).gtag('event', 'form_submission_performance', {
           event_category: 'performance',
           event_label: 'requirements_form',
           value: Math.round(submissionTime),

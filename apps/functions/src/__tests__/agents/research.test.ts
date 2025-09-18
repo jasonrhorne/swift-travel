@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Context } from '@netlify/functions';
 import { ItineraryRequest, ProcessingStatus } from '@swift-travel/shared';
 
 // Mock dependencies
@@ -57,13 +56,10 @@ vi.mock('../../itineraries/process-request', () => ({
 import { handler } from '../../agents/research';
 
 describe('Research Agent Unit Tests', () => {
-  let mockContext: Context;
   let mockItineraryRequest: ItineraryRequest;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    mockContext = {} as Context;
     
     mockItineraryRequest = {
       id: 'test-request-id',
@@ -144,7 +140,7 @@ describe('Research Agent Unit Tests', () => {
     vi.mocked(OpenAI).mockImplementation(() => mockOpenAI as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);
@@ -172,7 +168,7 @@ describe('Research Agent Unit Tests', () => {
     };
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(400);
@@ -194,7 +190,7 @@ describe('Research Agent Unit Tests', () => {
     };
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(405);
@@ -231,7 +227,7 @@ describe('Research Agent Unit Tests', () => {
     vi.mocked(OpenAI).mockImplementation(() => mockOpenAI as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(500);
@@ -260,7 +256,7 @@ describe('Research Agent Unit Tests', () => {
     vi.mocked(getItineraryRequest).mockResolvedValue(null);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(404);

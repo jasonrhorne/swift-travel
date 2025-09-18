@@ -1,11 +1,9 @@
 // Validation Agent - Location verification with Google Places API
 // Based on story 1.3 requirements for validation agent implementation
 
-import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
 import { 
   config,
-  ItineraryRequest, 
   Activity,
   ValidationResult
 } from '@swift-travel/shared';
@@ -65,7 +63,7 @@ interface ValidationResults {
 /**
  * Validation Agent handler - verifies locations using Google Places API
  */
-export async function handler(event: any, context: Context) {
+export async function handler(event: any) {
   const startTime = Date.now();
   let requestId: string = '';
   

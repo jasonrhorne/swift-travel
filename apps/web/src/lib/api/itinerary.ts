@@ -10,7 +10,7 @@ export interface ItinerarySubmissionResponse {
   error?: {
     code: string;
     message: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
   };
 }
 
@@ -49,7 +49,7 @@ export class ItineraryAPIError extends Error {
   constructor(
     public code: string,
     message: string,
-    public details?: Record<string, any>
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ItineraryAPIError';
@@ -212,7 +212,7 @@ class ItineraryAPI {
   /**
    * Cancel an in-progress itinerary request
    */
-  async cancelRequest(requestId: string): Promise<{ success: boolean; error?: any }> {
+  async cancelRequest(requestId: string): Promise<{ success: boolean; error?: unknown }> {
     try {
       await this.request(`/itineraries/cancel/${requestId}`, {
         method: 'POST',

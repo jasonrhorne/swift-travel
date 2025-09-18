@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Context } from '@netlify/functions';
 import { ItineraryRequest, ProcessingStatus } from '@swift-travel/shared';
 
 // Mock dependencies
@@ -50,14 +49,11 @@ global.fetch = vi.fn();
 import { handler } from '../../agents/validation';
 
 describe('Validation Agent Unit Tests', () => {
-  let mockContext: Context;
   let mockItineraryRequest: ItineraryRequest;
   let mockCurationResults: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    mockContext = {} as Context;
     
     mockItineraryRequest = {
       id: 'test-request-id',
@@ -170,7 +166,7 @@ describe('Validation Agent Unit Tests', () => {
       });
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);
@@ -215,7 +211,7 @@ describe('Validation Agent Unit Tests', () => {
     (global.fetch as any).mockRejectedValue(new Error('API Error'));
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200); // Should still complete with failed validations
@@ -260,7 +256,7 @@ describe('Validation Agent Unit Tests', () => {
     });
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200); // Should handle gracefully
@@ -294,7 +290,7 @@ describe('Validation Agent Unit Tests', () => {
     vi.mocked(Redis).mockImplementation(() => mockRedis as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(400);
@@ -351,7 +347,7 @@ describe('Validation Agent Unit Tests', () => {
     });
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);
@@ -374,7 +370,7 @@ describe('Validation Agent Unit Tests', () => {
     };
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(405);

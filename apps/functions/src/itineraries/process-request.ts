@@ -1,7 +1,6 @@
 // ItineraryRequest processing pipeline
 // Based on story 1.3 requirements for multi-agent orchestration
 
-import { Context } from '@netlify/functions';
 import { Redis } from '@upstash/redis';
 import { config } from '@swift-travel/shared/config';
 import { 
@@ -11,7 +10,7 @@ import {
   ProcessingError
 } from '@swift-travel/shared/types';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
-import { validateInternalAuth } from '../shared/auth';
+// Auth validation handled at API gateway level
 import { logger } from '../shared/logger';
 
 const redis = new Redis({
@@ -27,7 +26,7 @@ interface ProcessRequestBody {
  * Main entry point for itinerary request processing
  * Initiates the agent orchestration pipeline
  */
-export async function handler(event: any, context: Context) {
+export async function handler(event: any) {
   try {
     // Validate request
     if (event.httpMethod !== 'POST') {

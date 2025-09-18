@@ -1,11 +1,10 @@
 import { Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
 import Redis from 'ioredis';
 import { randomBytes } from 'crypto';
 import pino from 'pino';
 import { z } from 'zod';
 import { authConfig } from '@swift-travel/shared';
-import type { MagicLinkRequest, MagicLinkResponse, AuthError } from '@swift-travel/shared';
+import type { MagicLinkResponse, AuthError } from '@swift-travel/shared';
 
 // Initialize logger
 const logger = pino({
@@ -13,8 +12,7 @@ const logger = pino({
   level: 'info'
 });
 
-// Initialize clients
-const supabase = createClient(authConfig.supabaseUrl, authConfig.supabaseServiceRoleKey);
+// Initialize Redis client
 const redis = new Redis(authConfig.upstashRedisUrl);
 
 // Request validation schema

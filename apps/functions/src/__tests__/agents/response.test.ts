@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Context } from '@netlify/functions';
 import { ItineraryRequest, ProcessingStatus } from '@swift-travel/shared';
 
 // Mock dependencies
@@ -12,16 +11,7 @@ vi.mock('@upstash/redis', () => ({
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: () => ({
-      insert: vi.fn().mockReturnValue({ error: null, data: [{ id: 'itinerary-123' }] }),
-      select: () => ({
-        eq: () => ({
-          single: vi.fn()
-        })
-      })
-    })
-  })
+  createClient: vi.fn()
 }));
 
 vi.mock('@swift-travel/shared/config', () => ({
@@ -64,7 +54,6 @@ vi.mock('../../itineraries/process-request', () => ({
 import { handler } from '../../agents/response';
 
 describe('Response Agent Unit Tests', () => {
-  let mockContext: Context;
   let mockItineraryRequest: ItineraryRequest;
   let mockResearchResults: any;
   let mockCurationResults: any;
@@ -72,8 +61,6 @@ describe('Response Agent Unit Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    mockContext = {} as Context;
     
     mockItineraryRequest = {
       id: 'test-request-id',
@@ -226,7 +213,7 @@ describe('Response Agent Unit Tests', () => {
     vi.mocked(createClient).mockReturnValue(mockSupabase as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);
@@ -274,7 +261,7 @@ describe('Response Agent Unit Tests', () => {
     vi.mocked(Redis).mockImplementation(() => mockRedis as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(400);
@@ -322,7 +309,7 @@ describe('Response Agent Unit Tests', () => {
     vi.mocked(createClient).mockReturnValue(mockSupabase as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(500);
@@ -383,7 +370,7 @@ describe('Response Agent Unit Tests', () => {
     vi.mocked(createClient).mockReturnValue(mockSupabase as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);
@@ -409,7 +396,7 @@ describe('Response Agent Unit Tests', () => {
     };
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(400);
@@ -457,7 +444,7 @@ describe('Response Agent Unit Tests', () => {
     vi.mocked(createClient).mockReturnValue(mockSupabase as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);

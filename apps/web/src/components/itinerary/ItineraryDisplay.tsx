@@ -22,7 +22,7 @@ export default function ItineraryDisplay({ itineraryId }: ItineraryDisplayProps)
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Performance monitoring
-  const { trackItineraryLoad, trackProgressComplete, trackProgressError } = useItineraryMetrics(itineraryId);
+  const { trackItineraryLoad, trackProgressComplete } = useItineraryMetrics(itineraryId);
 
   useEffect(() => {
     const fetchItinerary = async () => {
@@ -67,7 +67,7 @@ export default function ItineraryDisplay({ itineraryId }: ItineraryDisplayProps)
     if (itineraryId) {
       fetchItinerary();
     }
-  }, [itineraryId]);
+  }, [itineraryId, trackItineraryLoad]);
 
   const handleProgressComplete = (completedItinerary: Itinerary) => {
     setItinerary(completedItinerary);

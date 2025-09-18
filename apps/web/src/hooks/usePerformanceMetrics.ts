@@ -6,7 +6,7 @@ import { performanceMonitoring } from '@/lib/monitoring';
 interface UsePerformanceMetricsOptions {
   eventName: string;
   category: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export function usePerformanceMetrics({
@@ -23,7 +23,7 @@ export function usePerformanceMetrics({
     hasTrackedRef.current = false;
   }, []);
 
-  const trackSuccess = (additionalMetadata?: Record<string, any>) => {
+  const trackSuccess = (additionalMetadata?: Record<string, unknown>) => {
     if (hasTrackedRef.current) return;
     
     const duration = Date.now() - startTimeRef.current;
@@ -39,7 +39,7 @@ export function usePerformanceMetrics({
     hasTrackedRef.current = true;
   };
 
-  const trackError = (error: string, additionalMetadata?: Record<string, any>) => {
+  const trackError = (error: string, additionalMetadata?: Record<string, unknown>) => {
     if (hasTrackedRef.current) return;
     
     const duration = Date.now() - startTimeRef.current;
@@ -56,7 +56,7 @@ export function usePerformanceMetrics({
     hasTrackedRef.current = true;
   };
 
-  const trackCustom = (customMetadata: Record<string, any>) => {
+  const trackCustom = (customMetadata: Record<string, unknown>) => {
     const duration = Date.now() - startTimeRef.current;
     
     performanceMonitoring.trackEvent(eventName, {
@@ -99,7 +99,7 @@ export function useItineraryMetrics(itineraryId: string) {
     metadata: { itineraryId }
   });
 
-  const trackItineraryLoad = (success: boolean, metadata?: Record<string, any>) => {
+  const trackItineraryLoad = (success: boolean, metadata?: Record<string, unknown>) => {
     if (success) {
       displayMetrics.trackSuccess(metadata);
     } else {
@@ -107,14 +107,14 @@ export function useItineraryMetrics(itineraryId: string) {
     }
   };
 
-  const trackProgressComplete = (totalDuration: number, metadata?: Record<string, any>) => {
+  const trackProgressComplete = (totalDuration: number, metadata?: Record<string, unknown>) => {
     progressMetrics.trackSuccess({
       totalGenerationTime: totalDuration,
       ...metadata
     });
   };
 
-  const trackProgressError = (error: string, metadata?: Record<string, any>) => {
+  const trackProgressError = (error: string, metadata?: Record<string, unknown>) => {
     progressMetrics.trackError(error, metadata);
   };
 

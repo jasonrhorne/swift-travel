@@ -33,16 +33,13 @@ class DevelopmentEmailProvider implements EmailProvider {
       provider: this.name 
     }, 'Sending email (development mode)');
     
-    console.log('\n' + '='.repeat(80));
-    console.log('📧 EMAIL SENT (Development Mode)');
-    console.log('='.repeat(80));
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${template.subject}`);
-    console.log('\n--- TEXT VERSION ---');
-    console.log(template.text);
-    console.log('\n--- HTML VERSION ---');
-    console.log('(HTML content available for email clients)');
-    console.log('='.repeat(80) + '\n');
+    // Log email details for development
+    logger.info({
+      to,
+      subject: template.subject,
+      textPreview: template.text.substring(0, 200),
+      hasHtml: !!template.html
+    }, 'Email logged (development mode)');
     
     return {
       success: true,
@@ -51,36 +48,9 @@ class DevelopmentEmailProvider implements EmailProvider {
   }
 }
 
-// Placeholder for future email providers
-class NetlifyEmailProvider implements EmailProvider {
-  name = 'netlify';
-  
-  async sendEmail(to: string, template: EmailTemplate): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    // TODO: Implement Netlify Email Integration
-    // This is a placeholder for future implementation
-    logger.warn({ to, provider: this.name }, 'Netlify email provider not yet implemented');
-    
-    return {
-      success: false,
-      error: 'Netlify email provider not yet implemented'
-    };
-  }
-}
-
-class SendGridProvider implements EmailProvider {
-  name = 'sendgrid';
-  
-  async sendEmail(to: string, template: EmailTemplate): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    // TODO: Implement SendGrid Integration
-    // This is a placeholder for future implementation
-    logger.warn({ to, provider: this.name }, 'SendGrid provider not yet implemented');
-    
-    return {
-      success: false,
-      error: 'SendGrid provider not yet implemented'
-    };
-  }
-}
+// TODO: Placeholder for future email providers
+// class NetlifyEmailProvider implements EmailProvider { ... }
+// class SendGridProvider implements EmailProvider { ... }
 
 class EmailService {
   private config: EmailServiceConfig;

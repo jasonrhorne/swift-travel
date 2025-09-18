@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Context } from '@netlify/functions';
 import { ItineraryRequest, ProcessingStatus } from '@swift-travel/shared';
 
 // Mock dependencies
@@ -57,14 +56,11 @@ vi.mock('../../itineraries/process-request', () => ({
 import { handler } from '../../agents/curation';
 
 describe('Curation Agent Unit Tests', () => {
-  let mockContext: Context;
   let mockItineraryRequest: ItineraryRequest;
   let mockResearchResults: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    mockContext = {} as Context;
     
     mockItineraryRequest = {
       id: 'test-request-id',
@@ -176,7 +172,7 @@ describe('Curation Agent Unit Tests', () => {
     vi.mocked(OpenAI).mockImplementation(() => mockOpenAI as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(200);
@@ -216,7 +212,7 @@ describe('Curation Agent Unit Tests', () => {
     vi.mocked(Redis).mockImplementation(() => mockRedis as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(400);
@@ -266,7 +262,7 @@ describe('Curation Agent Unit Tests', () => {
     vi.mocked(OpenAI).mockImplementation(() => mockOpenAI as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(500);
@@ -327,7 +323,7 @@ describe('Curation Agent Unit Tests', () => {
     vi.mocked(OpenAI).mockImplementation(() => mockOpenAI as any);
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(500);
@@ -349,7 +345,7 @@ describe('Curation Agent Unit Tests', () => {
     };
 
     // Act
-    const response = await handler(mockEvent, mockContext);
+    const response = await handler(mockEvent);
 
     // Assert
     expect(response.statusCode).toBe(400);
