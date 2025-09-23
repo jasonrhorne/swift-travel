@@ -38,12 +38,30 @@ export interface AuthState {
   checkSession: () => Promise<void>;
 }
 
+// Development mode bypass - automatically set a test user
+const isDevelopment = process.env.NODE_ENV === 'development';
+const devUser: User | null = isDevelopment
+  ? {
+      id: 'dev-user-123',
+      email: 'dev@swift-travel.com',
+      name: 'Development User',
+      preferences: {
+        travelStyle: 'balanced',
+        pacePreference: 'moderate',
+        budgetLevel: 'moderate',
+        interests: ['culture', 'food', 'nature'],
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  : null;
+
 export const useAuthStore = create<AuthState>()(
   persist(
     immer(set => ({
-      // Initial state
-      user: null,
-      isAuthenticated: false,
+      // Initial state - auto-authenticate in development
+      user: devUser,
+      isAuthenticated: isDevelopment,
       isLoading: false,
       error: null,
       magicLinkEmail: null,

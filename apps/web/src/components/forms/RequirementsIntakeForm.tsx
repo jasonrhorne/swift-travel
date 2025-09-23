@@ -5,9 +5,9 @@ import { useRequirementsStore } from '@/stores/requirementsStore';
 import { 
   userRequirementsSchema,
   destinationStepSchema,
-  datesStepSchema,
-  personaStepSchema,
-  preferencesStepSchema,
+  durationStepSchema,
+  interestsStepSchema,
+  travelersStepSchema,
   requestsStepSchema,
   formatValidationError
 } from '@swift-travel/shared';
@@ -16,9 +16,9 @@ import { z } from 'zod';
 
 // Form step components
 import DestinationStep from './steps/DestinationStep';
-import DatesStep from './steps/DatesStep'; 
-import PersonaStep from './steps/PersonaStep';
-import PreferencesStep from './steps/PreferencesStep';
+import DurationStep from './steps/DurationStep'; 
+import InterestsStep from './steps/InterestsStep';
+import TravelersStep from './steps/TravelersStep';
 import RequestsStep from './steps/RequestsStep';
 
 // Progress component
@@ -38,9 +38,8 @@ export default function RequirementsIntakeForm() {
     
     // Form data
     destination,
-    persona,
-    dates,
-    budgetRange,
+    interests,
+    travelerComposition,
     groupSize,
     specialRequests,
     accessibilityNeeds,
@@ -64,9 +63,9 @@ export default function RequirementsIntakeForm() {
   // Step validation schemas
   const stepSchemas = [
     destinationStepSchema,
-    datesStepSchema,
-    personaStepSchema,
-    preferencesStepSchema,
+    durationStepSchema,
+    interestsStepSchema,
+    travelersStepSchema,
     requestsStepSchema,
   ];
   
@@ -76,11 +75,11 @@ export default function RequirementsIntakeForm() {
       case 0:
         return { destination };
       case 1:
-        return { dates };
+        return { duration: 'long-weekend' }; // Fixed duration for long weekend
       case 2:
-        return { persona };
+        return { interests };
       case 3:
-        return { budgetRange, groupSize };
+        return { travelerComposition, groupSize };
       case 4:
         return { specialRequests, accessibilityNeeds };
       default:
@@ -281,9 +280,9 @@ export default function RequirementsIntakeForm() {
             {/* Step content */}
             <div className="mb-8">
               {currentStep === 0 && <DestinationStep />}
-              {currentStep === 1 && <DatesStep />}
-              {currentStep === 2 && <PersonaStep />}
-              {currentStep === 3 && <PreferencesStep />}
+              {currentStep === 1 && <DurationStep />}
+              {currentStep === 2 && <InterestsStep />}
+              {currentStep === 3 && <TravelersStep />}
               {currentStep === 4 && <RequestsStep />}
             </div>
             

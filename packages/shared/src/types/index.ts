@@ -48,15 +48,24 @@ export interface User {
   lastActiveAt: Date;
 }
 
+export interface TravelerComposition {
+  adults: number;
+  children: number;
+  childrenAges: number[];
+}
+
 export interface UserRequirements {
   destination: string;
-  persona: PersonaType;
-  dates: {
+  interests: string[]; // New field for selected interests
+  persona: PersonaType; // Kept for backward compatibility
+  duration: 'long-weekend';
+  dates?: { // Optional for backward compatibility
     startDate: Date;
     endDate: Date;
   };
   budgetRange: BudgetRange;
   groupSize: number;
+  travelerComposition?: TravelerComposition; // New field for traveler details
   specialRequests: string[];
   accessibilityNeeds: string[];
 }

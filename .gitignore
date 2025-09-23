@@ -128,3 +128,5 @@ temp/
 *.jpeg
 *.gif
 *.svg
+# Local Netlify folder
+.netlify

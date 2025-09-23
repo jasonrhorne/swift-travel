@@ -2,52 +2,49 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRequirementsStore } from '@/stores/requirementsStore';
-import { sanitizeStringInput } from '@swift-travel/shared';
+import { 
+  sanitizeStringInput,
+  POPULAR_DESTINATIONS, 
+  getDestinationSuggestions,
+  isValidNorthAmericanDestination,
+  type Destination 
+} from '@swift-travel/shared';
 
 export default function DestinationStep() {
-  const { destination, setDestination, errors } = useRequirementsStore();
+  const { destination, setDestination, errors, setFieldError, clearFieldError } = useRequirementsStore();
   const [localValue, setLocalValue] = useState(destination);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Destination[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  // Popular destination suggestions
-  const popularDestinations = [
-    'Paris, France',
-    'Tokyo, Japan',
-    'New York City, USA',
-    'London, England',
-    'Barcelona, Spain',
-    'Rome, Italy',
-    'Amsterdam, Netherlands',
-    'Berlin, Germany',
-    'San Francisco, USA',
-    'Sydney, Australia',
-  ];
   
   // Update local value when store changes
   useEffect(() => {
     setLocalValue(destination);
   }, [destination]);
   
-  // Handle input change with debouncing
+  // Handle input change with debouncing and validation
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const sanitized = sanitizeStringInput(localValue);
       if (sanitized !== destination) {
         setDestination(sanitized);
+        
+        // Validate destination is in US/Canada
+        if (sanitized && !isValidNorthAmericanDestination(sanitized)) {
+          setFieldError('destination', 'Please select a destination in the United States or Canada');
+        } else {
+          clearFieldError('destination');
+        }
       }
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [localValue, destination, setDestination]);
+  }, [localValue, destination, setDestination, setFieldError, clearFieldError]);
   
   // Handle suggestion filtering
   useEffect(() => {
     if (localValue.length >= 2) {
-      const filtered = popularDestinations.filter(dest =>
-        dest.toLowerCase().includes(localValue.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 5));
+      const filtered = getDestinationSuggestions(localValue);
+      setSuggestions(filtered);
       setShowSuggestions(filtered.length > 0);
     } else {
       setSuggestions([]);
@@ -62,6 +59,7 @@ export default function DestinationStep() {
   const handleSuggestionClick = (suggestion: string) => {
     setLocalValue(suggestion);
     setDestination(suggestion);
+    clearFieldError('destination'); // Clear any validation errors
     setShowSuggestions(false);
   };
   
@@ -85,7 +83,7 @@ export default function DestinationStep() {
           Where would you like to go?
         </h2>
         <p className="text-gray-600">
-          Tell us your dream destination and we'll create the perfect itinerary for you.
+          Choose your destination in the United States or Canada for the perfect long weekend getaway.
         </p>
       </div>
       
@@ -102,7 +100,7 @@ export default function DestinationStep() {
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
-            placeholder="e.g., Paris, France or Tokyo, Japan"
+            placeholder="e.g., New York City, NY or Vancouver, BC"
             className={`w-full px-4 py-3 border rounded-lg text-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
               hasError 
                 ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
@@ -127,7 +125,7 @@ export default function DestinationStep() {
               <button
                 key={index}
                 type="button"
-                onClick={() => handleSuggestionClick(suggestion)}
+                onClick={() => handleSuggestionClick(suggestion.displayName)}
                 className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none first:rounded-t-lg last:rounded-b-lg"
               >
                 <div className="flex items-center">
@@ -135,7 +133,10 @@ export default function DestinationStep() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <span className="text-gray-900">{suggestion}</span>
+                  <span className="text-gray-900">{suggestion.displayName}</span>
+                  <span className="ml-2 text-sm text-gray-500">
+                    {suggestion.country === 'USA' ? '🇺🇸' : '🇨🇦'}
+                  </span>
                 </div>
               </button>
             ))}
@@ -154,7 +155,7 @@ export default function DestinationStep() {
         <div>
           <h3 className="text-sm font-medium text-gray-700 mb-3">Popular destinations:</h3>
           <div className="flex flex-wrap gap-2">
-            {popularDestinations.slice(0, 6).map((dest, index) => (
+            {POPULAR_DESTINATIONS.map((dest, index) => (
               <button
                 key={index}
                 type="button"

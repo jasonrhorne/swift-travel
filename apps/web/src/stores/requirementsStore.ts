@@ -1,18 +1,26 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
-import type { UserRequirements, PersonaType, BudgetRange } from '@swift-travel/shared';
+import type { UserRequirements, PersonaType } from '@swift-travel/shared';
+
+export interface TravelerComposition {
+  adults: number;
+  children: number;
+  childrenAges: number[];
+}
 
 // Form state interface
 export interface RequirementsFormState {
   // Form data
   destination: string;
-  persona: PersonaType | null;
+  interests: string[]; // Selected travel interests
+  persona: PersonaType | null; // Legacy field, kept for compatibility
+  duration: 'long-weekend'; // Fixed duration for long weekend trips
   dates: {
     startDate: Date | null;
     endDate: Date | null;
   };
-  budgetRange: BudgetRange | null;
+  travelerComposition: TravelerComposition | null;
   groupSize: number;
   specialRequests: string[];
   accessibilityNeeds: string[];
@@ -34,9 +42,11 @@ export interface RequirementsFormState {
 export interface RequirementsFormActions {
   // Data setters
   setDestination: (destination: string) => void;
+  setInterests: (interests: string[]) => void;
   setPersona: (persona: PersonaType) => void;
+  setDuration: (duration: 'long-weekend') => void;
   setDates: (startDate: Date, endDate: Date) => void;
-  setBudgetRange: (budget: BudgetRange) => void;
+  setTravelerComposition: (composition: TravelerComposition) => void;
   setGroupSize: (size: number) => void;
   addSpecialRequest: (request: string) => void;
   removeSpecialRequest: (index: number) => void;
@@ -78,12 +88,14 @@ export type RequirementsStore = RequirementsFormState & RequirementsFormActions;
 // Default state
 const defaultState: RequirementsFormState = {
   destination: '',
+  interests: [],
   persona: null,
+  duration: 'long-weekend',
   dates: {
     startDate: null,
     endDate: null,
   },
-  budgetRange: null,
+  travelerComposition: null,
   groupSize: 2,
   specialRequests: [],
   accessibilityNeeds: [],
@@ -98,13 +110,13 @@ const defaultState: RequirementsFormState = {
 };
 
 // Form steps configuration
-const FORM_STEPS = [
-  'destination',
-  'dates', 
-  'persona',
-  'preferences',
-  'requests'
-] as const;
+// const FORM_STEPS = [
+//   'destination',
+//   'duration', 
+//   'interests',
+//   'travelers',
+//   'requests'
+// ] as const;
 
 export const useRequirementsStore = create<RequirementsStore>()(
   persist(
@@ -118,8 +130,20 @@ export const useRequirementsStore = create<RequirementsStore>()(
         state.lastSaved = new Date();
       }),
       
+      setInterests: (interests: string[]) => set((state) => {
+        state.interests = interests;
+        state.isDirty = true;
+        state.lastSaved = new Date();
+      }),
+      
       setPersona: (persona: PersonaType) => set((state) => {
         state.persona = persona;
+        state.isDirty = true;
+        state.lastSaved = new Date();
+      }),
+      
+      setDuration: (duration: 'long-weekend') => set((state) => {
+        state.duration = duration;
         state.isDirty = true;
         state.lastSaved = new Date();
       }),
@@ -131,8 +155,8 @@ export const useRequirementsStore = create<RequirementsStore>()(
         state.lastSaved = new Date();
       }),
       
-      setBudgetRange: (budget: BudgetRange) => set((state) => {
-        state.budgetRange = budget;
+      setTravelerComposition: (composition: TravelerComposition) => set((state) => {
+        state.travelerComposition = composition;
         state.isDirty = true;
         state.lastSaved = new Date();
       }),
@@ -260,23 +284,21 @@ export const useRequirementsStore = create<RequirementsStore>()(
       exportUserRequirements: (): UserRequirements | null => {
         const state = get();
         
-        if (!state.destination || !state.persona || !state.dates.startDate || 
-            !state.dates.endDate || !state.budgetRange) {
+        if (!state.destination || state.interests.length === 0 || !state.duration || !state.travelerComposition) {
           return null;
         }
         
         return {
           destination: state.destination,
-          persona: state.persona,
-          dates: {
-            startDate: state.dates.startDate,
-            endDate: state.dates.endDate,
-          },
-          budgetRange: state.budgetRange,
+          interests: state.interests,
+          persona: state.persona || 'photography', // Default persona for backward compatibility
+          duration: state.duration,
+          budgetRange: 'mid-range', // Default budget for backward compatibility
           groupSize: state.groupSize,
+          travelerComposition: state.travelerComposition,
           specialRequests: state.specialRequests,
           accessibilityNeeds: state.accessibilityNeeds,
-        };
+        } as UserRequirements; // Temporarily cast to UserRequirements until type is updated
       },
       
       // Utility
@@ -285,9 +307,9 @@ export const useRequirementsStore = create<RequirementsStore>()(
         let completed = 0;
         
         if (state.destination) completed++;
-        if (state.dates.startDate && state.dates.endDate) completed++;
-        if (state.persona) completed++;
-        if (state.budgetRange) completed++;
+        if (state.duration) completed++;
+        if (state.interests.length > 0) completed++;
+        if (state.travelerComposition) completed++;
         // Special requests and accessibility are optional
         
         return Math.round((completed / 4) * 100);
@@ -299,12 +321,12 @@ export const useRequirementsStore = create<RequirementsStore>()(
         switch (step) {
           case 0: // destination
             return state.destination.length >= 2;
-          case 1: // dates
-            return state.dates.startDate !== null && state.dates.endDate !== null;
-          case 2: // persona
-            return state.persona !== null;
-          case 3: // preferences
-            return state.budgetRange !== null;
+          case 1: // duration
+            return state.duration === 'long-weekend';
+          case 2: // interests
+            return state.interests.length > 0;
+          case 3: // travelers
+            return state.travelerComposition !== null && state.groupSize >= 1;
           case 4: // requests
             return true; // Optional step
           default:
@@ -317,9 +339,11 @@ export const useRequirementsStore = create<RequirementsStore>()(
       // Only persist form data, not UI state
       partialize: (state) => ({
         destination: state.destination,
+        interests: state.interests,
         persona: state.persona,
+        duration: state.duration,
         dates: state.dates,
-        budgetRange: state.budgetRange,
+        travelerComposition: state.travelerComposition,
         groupSize: state.groupSize,
         specialRequests: state.specialRequests,
         accessibilityNeeds: state.accessibilityNeeds,

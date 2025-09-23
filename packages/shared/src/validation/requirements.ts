@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { PersonaType, BudgetRange } from '../types';
+// import type { PersonaType, BudgetRange } from '../types';
 
 // Persona validation
 export const personaSchema = z.enum(['photography', 'food-forward', 'architecture', 'family'] as const);
@@ -7,13 +7,16 @@ export const personaSchema = z.enum(['photography', 'food-forward', 'architectur
 // Budget range validation
 export const budgetRangeSchema = z.enum(['budget', 'mid-range', 'luxury', 'no-limit'] as const);
 
-// Date validation with future date requirement
+// Duration validation for long weekend trips
+export const durationSchema = z.enum(['long-weekend'] as const).default('long-weekend');
+
+// Legacy date validation (kept for backward compatibility but not used in new flow)
 export const dateSchema = z.date().refine(
   (date) => date > new Date(),
   { message: "Date must be in the future" }
 );
 
-// Date range validation
+// Legacy date range validation (kept for backward compatibility but not used in new flow)
 export const dateRangeSchema = z.object({
   startDate: dateSchema,
   endDate: dateSchema,
@@ -44,7 +47,7 @@ export const userRequirementsSchema = z.object({
   
   persona: personaSchema,
   
-  dates: dateRangeSchema,
+  duration: durationSchema,
   
   budgetRange: budgetRangeSchema,
   
@@ -65,12 +68,35 @@ export const destinationStepSchema = z.object({
   destination: userRequirementsSchema.shape.destination,
 });
 
+export const durationStepSchema = z.object({
+  duration: durationSchema,
+});
+
+// Legacy dates step schema (kept for backward compatibility)
 export const datesStepSchema = z.object({
-  dates: userRequirementsSchema.shape.dates,
+  dates: z.optional(dateRangeSchema),
+});
+
+export const interestsStepSchema = z.object({
+  interests: z.array(z.string())
+    .min(1, "Please select at least one interest")
+    .max(12, "Maximum 12 interests allowed"),
 });
 
 export const personaStepSchema = z.object({
   persona: userRequirementsSchema.shape.persona,
+});
+
+export const travelersStepSchema = z.object({
+  travelerComposition: z.object({
+    adults: z.number().min(1, "At least 1 adult required").max(10, "Maximum 10 adults"),
+    children: z.number().min(0).max(10, "Maximum 10 children"),
+    childrenAges: z.array(z.number().min(0).max(17))
+  }).optional(),
+  groupSize: z.number()
+    .int("Group size must be a whole number")
+    .min(1, "Group size must be at least 1")
+    .max(20, "Group size cannot exceed 20 people"),
 });
 
 export const preferencesStepSchema = z.object({
@@ -96,7 +122,7 @@ export const formatValidationError = (error: z.ZodError) => {
 export const sanitizeStringInput = (input: string): string => {
   return input
     .trim()
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\u0000-\u001F\u007F]/gu, '') // Remove control characters
     .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
     .replace(/<[^>]*>/g, ''); // Remove HTML tags
 };
@@ -111,6 +137,7 @@ export const sanitizeArrayInput = (input: string[]): string[] => {
 // Export types for TypeScript inference
 export type UserRequirementsInput = z.infer<typeof userRequirementsSchema>;
 export type DestinationStepInput = z.infer<typeof destinationStepSchema>;
+export type DurationStepInput = z.infer<typeof durationStepSchema>;
 export type DatesStepInput = z.infer<typeof datesStepSchema>;
 export type PersonaStepInput = z.infer<typeof personaStepSchema>;
 export type PreferencesStepInput = z.infer<typeof preferencesStepSchema>;

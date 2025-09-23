@@ -5,3 +5,4 @@ export * from './constants';
 export * from './utils';
 export * from './validation';
 export * from './config';
+export * from './data/destinations';

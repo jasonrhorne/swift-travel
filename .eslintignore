@@ -14,6 +14,8 @@ out/
 !next.config.js
 !tailwind.config.js
 !postcss.config.js
+apps/web/tailwind.config.js
+apps/web/postcss.config.js
 
 # Test coverage
 coverage/

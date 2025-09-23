@@ -33,6 +33,27 @@ interface AppConfig {
 
 function getEnvVar(key: string, required: boolean = true): string {
   const value = process.env[key];
+  
+  // In development mode, provide default values for missing env vars
+  if (process.env.NODE_ENV === 'development' && !value) {
+    const devDefaults: Record<string, string> = {
+      SUPABASE_URL: 'https://dummy-project.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: 'dummy-service-role-key',
+      SUPABASE_ANON_KEY: 'dummy-anon-key',
+      UPSTASH_REDIS_URL: 'https://dummy-redis.upstash.io',
+      UPSTASH_REDIS_TOKEN: 'dummy-redis-token',
+      OPENAI_API_KEY: 'dummy-openai-key',
+      GOOGLE_PLACES_API_KEY: 'dummy-places-key',
+      GOOGLE_MAPS_API_KEY: 'dummy-maps-key',
+      INTERNAL_API_KEY: 'dummy-internal-key',
+      JWT_SECRET: 'development-jwt-secret',
+    };
+    
+    if (devDefaults[key]) {
+      return devDefaults[key];
+    }
+  }
+  
   if (required && !value) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
