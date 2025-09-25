@@ -1,0 +1,56 @@
+schema: 1
+story: 'RF-1.1'
+story_title: 'Restrict Destinations to US/Canada'
+gate: CONCERNS
+status_reason: 'Implementation appears complete with validation logic, but missing dedicated unit tests for destination validation functions'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-09-23T10:30:00Z'
+
+top_issues:
+  - issue: 'No dedicated unit tests for destination validation functions'
+    severity: medium
+    refs: ['packages/shared/src/data/destinations.ts']
+    suggested_owner: dev
+  - issue: 'No component tests for DestinationStep component'
+    severity: medium
+    refs: ['apps/web/src/components/forms/steps/DestinationStep.tsx']
+    suggested_owner: dev
+
+waiver: { active: false }
+
+quality_score: 70
+
+expires: '2025-10-07T10:30:00Z'
+
+evidence:
+  tests_reviewed: 2
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2]
+    ac_gaps: [3, 4]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Input sanitization properly implemented with XSS protection'
+  performance:
+    status: PASS
+    notes: 'Efficient suggestion filtering with debouncing for performance'
+  reliability:
+    status: CONCERNS
+    notes: 'Error handling present but lacks test coverage'
+  maintainability:
+    status: PASS
+    notes: 'Code is well-structured with clear separation of concerns'
+
+recommendations:
+  immediate:
+    - action: 'Add unit tests for isValidNorthAmericanDestination and getDestinationSuggestions'
+      refs: ['packages/shared/src/data/destinations.ts']
+    - action: 'Add component tests for DestinationStep validation behavior'
+      refs: ['apps/web/src/components/forms/steps/DestinationStep.tsx']
+  future:
+    - action: 'Consider adding E2E tests for destination selection flow'
+      refs: ['apps/web/src/components/forms/steps/DestinationStep.tsx']
+    - action: 'Consider implementing fuzzy search for destination suggestions'
+      refs: ['packages/shared/src/data/destinations.ts']

@@ -49,10 +49,11 @@ interface CurationResult {
     };
     themes: string[];
     highlights: string[];
+    familyConsiderations?: string[];
   };
   curationMetadata: {
-    personaAdherence: number;
-    budgetAlignment: number;
+    interestAlignment: number;
+    childFriendliness?: number;
     logisticalScore: number;
     diversityScore: number;
   };
@@ -106,14 +107,14 @@ export async function handler(event: any) {
     await completeAgentProcessing(requestId, 'curation', {
       curationCompleted: true,
       activitiesCreated: curationResult.activities.length,
-      personaAdherence: curationResult.curationMetadata.personaAdherence,
-      budgetAlignment: curationResult.curationMetadata.budgetAlignment,
+      interestAlignment: curationResult.curationMetadata.interestAlignment,
+      logisticalScore: curationResult.curationMetadata.logisticalScore,
     });
 
     const duration = Date.now() - startTime;
     agentLogger.agentComplete('curation', requestId, duration, {
       activitiesCount: curationResult.activities.length,
-      personaAdherence: curationResult.curationMetadata.personaAdherence,
+      interestAlignment: curationResult.curationMetadata.interestAlignment,
     });
 
     return createSuccessResponse({
@@ -149,7 +150,7 @@ async function performItineraryCuration(
       messages: [
         {
           role: 'system',
-          content: `You are an expert travel itinerary curator. Create detailed, practical, and persona-specific itineraries in JSON format. Focus on timing, logistics, and authentic local experiences.`,
+          content: `You are an expert travel itinerary curator specializing in US/Canada long weekend getaways. Create detailed, practical, interest-based itineraries in JSON format for 3-4 day trips. Focus on maximizing interests, family-friendliness when needed, and authentic local experiences.`,
         },
         {
           role: 'user',
@@ -185,30 +186,34 @@ function buildCurationPrompt(
   const { requirements } = request;
   const {
     destination,
-    persona,
-    budgetRange,
+    interests = [],
+    duration,
     groupSize,
-    dates,
+    travelerComposition,
     specialRequests,
     accessibilityNeeds,
   } = requirements;
 
-  const startDate = dates.startDate.toISOString().split('T')[0];
-  const endDate = dates.endDate.toISOString().split('T')[0];
-  const tripDays = Math.ceil(
-    (dates.endDate.getTime() - dates.startDate.getTime()) /
-      (1000 * 60 * 60 * 24)
-  );
+  // Build child-friendly requirements if applicable
+  let childrenGuidance = '';
+  if (travelerComposition?.children && travelerComposition.children > 0) {
+    const ages = travelerComposition.childrenAges;
+    childrenGuidance = `
+- Children ages: ${ages.join(', ')}
+- CRITICAL: All activities must be appropriate for children aged ${Math.min(...ages)}-${Math.max(...ages)}
+- Include family-friendly dining options
+- Consider nap times and shorter attention spans
+- Ensure bathroom accessibility`;
+  }
 
   return `
-Based on this research context, create a detailed ${tripDays}-day itinerary:
+Based on this research context, create a detailed 3-4 day long weekend itinerary:
 
 REQUIREMENTS:
-- Destination: ${destination}
-- Persona: ${persona}
-- Budget: ${budgetRange}
-- Group size: ${groupSize}
-- Dates: ${startDate} to ${endDate}
+- Destination: ${destination} (US/Canada)
+- Duration: ${duration} (3-4 days)
+- Traveler interests: ${interests.join(', ') || 'General sightseeing'}
+- Group composition: ${travelerComposition?.adults || groupSize} adults, ${travelerComposition?.children || 0} children${childrenGuidance}
 - Special requests: ${specialRequests.join(', ') || 'None'}
 - Accessibility needs: ${accessibilityNeeds.join(', ') || 'None'}
 
@@ -246,9 +251,9 @@ Create a JSON response with this structure:
         }
       },
       "personaContext": {
-        "reasoning": "Why this fits the ${persona} persona",
-        "highlights": ["key points for this persona"],
-        "tips": ["specific ${persona} tips"]
+        "reasoning": "How this aligns with traveler interests: ${interests.join(', ')}",
+        "highlights": ["key interest-based highlights"],
+        "tips": ["insider tips for this activity"]
       },
       "estimatedCost": {
         "min": 0,
@@ -269,26 +274,26 @@ Create a JSON response with this structure:
     "highlights": ["top experiences"]
   },
   "curationMetadata": {
-    "personaAdherence": 0.95,
-    "budgetAlignment": 0.90,
+    "interestAlignment": 0.95,
+    "childFriendliness": 0.90 if children present,
     "logisticalScore": 0.85,
     "diversityScore": 0.80
   }
 }
 
-CURATION GUIDELINES:
-1. Focus heavily on ${persona} persona preferences
-2. Align with ${budgetRange} budget expectations
-3. Consider ${groupSize} people logistics
-4. Account for ${tripDays} days with realistic timing
-5. Include varied activity categories
+LONG WEEKEND CURATION GUIDELINES:
+1. Create exactly 3-4 days of activities (${duration})
+2. Prioritize activities matching interests: ${interests.join(', ')}
+3. ${travelerComposition?.children ? 'ENSURE all activities are appropriate for children' : 'Focus on adult experiences'}
+4. Plan 3-5 activities per day for optimal pacing
+5. Include varied activity categories aligned with interests
 6. Respect accessibility needs: ${accessibilityNeeds.join(', ') || 'Standard'}
-7. Use realistic coordinates and addresses
+7. Use realistic US/Canada coordinates and addresses
 8. Provide practical timing with buffer time
-9. Include cost estimates appropriate for ${budgetRange}
-10. Ensure activities flow logistically by day and location
+9. Keep costs reasonable for a weekend getaway
+10. Ensure activities flow logistically by proximity
 
-Make the itinerary authentic, practical, and perfectly tailored to the ${persona} persona.
+Make the itinerary perfect for a long weekend escape that maximizes the traveler's specific interests.
 `;
 }
 
@@ -367,16 +372,21 @@ function formatCurationResult(
       },
       themes: parsedResult.itineraryOverview?.themes || [],
       highlights: parsedResult.itineraryOverview?.highlights || [],
+      familyConsiderations: request.requirements.travelerComposition?.children
+        ? parsedResult.itineraryOverview?.familyConsiderations || ['Family-friendly itinerary']
+        : undefined,
     },
     curationMetadata: {
-      personaAdherence: Math.min(
-        Math.max(parsedResult.curationMetadata?.personaAdherence || 0.8, 0),
+      interestAlignment: Math.min(
+        Math.max(parsedResult.curationMetadata?.interestAlignment || 0.8, 0),
         1
       ),
-      budgetAlignment: Math.min(
-        Math.max(parsedResult.curationMetadata?.budgetAlignment || 0.8, 0),
-        1
-      ),
+      childFriendliness: request.requirements.travelerComposition?.children
+        ? Math.min(
+            Math.max(parsedResult.curationMetadata?.childFriendliness || 0.8, 0),
+            1
+          )
+        : undefined,
       logisticalScore: Math.min(
         Math.max(parsedResult.curationMetadata?.logisticalScore || 0.8, 0),
         1

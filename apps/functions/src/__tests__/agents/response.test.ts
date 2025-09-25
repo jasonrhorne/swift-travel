@@ -68,12 +68,9 @@ describe('Response Agent Unit Tests', () => {
       itineraryId: null,
       requirements: {
         destination: 'Paris, France',
-        persona: 'photography',
-        dates: {
-          startDate: new Date('2024-06-01'),
-          endDate: new Date('2024-06-05')
-        },
-        budgetRange: 'mid-range',
+        interests: ['Photography', 'Food'],
+        duration: 'long-weekend',
+        travelerComposition: { adults: 2, children: 0, childrenAges: [] },
         groupSize: 2,
         specialRequests: [],
         accessibilityNeeds: []

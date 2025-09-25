@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useRequirementsStore } from '../../stores/requirementsStore';
-import type { PersonaType, BudgetRange } from '@swift-travel/shared';
 
 describe('RequirementsStore', () => {
   beforeEach(() => {
@@ -14,9 +13,6 @@ describe('RequirementsStore', () => {
       
       expect(state.destination).toBe('');
       expect(state.persona).toBeNull();
-      expect(state.dates.startDate).toBeNull();
-      expect(state.dates.endDate).toBeNull();
-      expect(state.budgetRange).toBeNull();
       expect(state.groupSize).toBe(2);
       expect(state.specialRequests).toEqual([]);
       expect(state.accessibilityNeeds).toEqual([]);
@@ -52,28 +48,7 @@ describe('RequirementsStore', () => {
       expect(state.isDirty).toBe(true);
     });
 
-    it('should set dates correctly', () => {
-      const { setDates } = useRequirementsStore.getState();
-      const startDate = new Date('2024-12-01');
-      const endDate = new Date('2024-12-03');
-      
-      setDates(startDate, endDate);
-      
-      const state = useRequirementsStore.getState();
-      expect(state.dates.startDate).toEqual(startDate);
-      expect(state.dates.endDate).toEqual(endDate);
-      expect(state.isDirty).toBe(true);
-    });
 
-    it('should set budget range correctly', () => {
-      const { setBudgetRange } = useRequirementsStore.getState();
-      
-      setBudgetRange('mid-range');
-      
-      const state = useRequirementsStore.getState();
-      expect(state.budgetRange).toBe('mid-range');
-      expect(state.isDirty).toBe(true);
-    });
 
     it('should set group size correctly', () => {
       const { setGroupSize } = useRequirementsStore.getState();
@@ -251,21 +226,18 @@ describe('RequirementsStore', () => {
 
   describe('Utility functions', () => {
     it('should calculate completion percentage correctly', () => {
-      const { setDestination, setDates, setPersona, setBudgetRange, getCompletionPercentage } = useRequirementsStore.getState();
+      const { setDestination, setPersona, setInterests, getCompletionPercentage } = useRequirementsStore.getState();
       
       expect(getCompletionPercentage()).toBe(0);
       
       setDestination('Paris');
       expect(getCompletionPercentage()).toBe(25);
       
-      setDates(new Date('2024-12-01'), new Date('2024-12-03'));
-      expect(getCompletionPercentage()).toBe(50);
-      
       setPersona('photography');
-      expect(getCompletionPercentage()).toBe(75);
+      expect(getCompletionPercentage()).toBe(25);
       
-      setBudgetRange('mid-range');
-      expect(getCompletionPercentage()).toBe(100);
+      setInterests(['Food', 'Photography']);
+      expect(getCompletionPercentage()).toBe(50);
     });
 
     it('should validate step completion correctly', () => {
@@ -282,8 +254,8 @@ describe('RequirementsStore', () => {
       const {
         setDestination,
         setPersona,
-        setDates,
-        setBudgetRange,
+        setInterests,
+        setTravelerComposition,
         setGroupSize,
         addSpecialRequest,
         addAccessibilityNeed,
@@ -296,8 +268,8 @@ describe('RequirementsStore', () => {
       // Complete data
       setDestination('Paris, France');
       setPersona('photography');
-      setDates(new Date('2024-12-01'), new Date('2024-12-03'));
-      setBudgetRange('mid-range');
+      setInterests(['Food', 'Photography']);
+      setTravelerComposition({ adults: 2, children: 0, childrenAges: [] });
       setGroupSize(2);
       addSpecialRequest('Anniversary dinner');
       addAccessibilityNeed('Wheelchair accessible');
@@ -306,11 +278,9 @@ describe('RequirementsStore', () => {
       expect(result).toEqual({
         destination: 'Paris, France',
         persona: 'photography',
-        dates: {
-          startDate: new Date('2024-12-01'),
-          endDate: new Date('2024-12-03')
-        },
-        budgetRange: 'mid-range',
+        interests: ['Food', 'Photography'],
+        duration: 'long-weekend',
+        travelerComposition: { adults: 2, children: 0, childrenAges: [] },
         groupSize: 2,
         specialRequests: ['Anniversary dinner'],
         accessibilityNeeds: ['Wheelchair accessible']

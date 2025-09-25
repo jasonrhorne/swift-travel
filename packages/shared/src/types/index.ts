@@ -56,14 +56,14 @@ export interface TravelerComposition {
 
 export interface UserRequirements {
   destination: string;
-  interests: string[]; // New field for selected interests
-  persona: PersonaType; // Kept for backward compatibility
+  interests: string[]; // Primary field for travel preferences
+  persona?: PersonaType; // Optional for backward compatibility
   duration: 'long-weekend';
   dates?: { // Optional for backward compatibility
     startDate: Date;
     endDate: Date;
   };
-  budgetRange: BudgetRange;
+  budgetRange?: BudgetRange; // Optional as per story 1.4
   groupSize: number;
   travelerComposition?: TravelerComposition; // New field for traveler details
   specialRequests: string[];
@@ -170,7 +170,8 @@ export interface Itinerary {
   title?: string;
   description?: string;
   destination: string;
-  persona?: PersonaType;
+  interests: string[];
+  persona?: PersonaType; // Deprecated - kept for backward compatibility
   startDate?: Date;
   endDate?: Date;
   status: ItineraryStatus;

@@ -3,20 +3,20 @@
 import React from 'react';
 import { useRequirementsStore } from '@/stores/requirementsStore';
 
-// 12 diverse travel interests
+// 12 diverse travel interests as per story specification
 const TRAVEL_INTERESTS = [
-  { id: 'food', label: 'Food & Dining', icon: '🍽️', description: 'Local cuisine, restaurants, markets' },
-  { id: 'art', label: 'Art & Museums', icon: '🎨', description: 'Galleries, exhibits, installations' },
-  { id: 'outdoors', label: 'Outdoor Activities', icon: '🥾', description: 'Hiking, parks, nature' },
+  { id: 'arts-culture', label: 'Arts and Culture', icon: '🎨', description: 'Museums, galleries, cultural events' },
+  { id: 'food-dining', label: 'Food and Dining', icon: '🍽️', description: 'Local cuisine, restaurants, markets' },
+  { id: 'history-heritage', label: 'History and Heritage', icon: '🏺', description: 'Historic sites, monuments, traditions' },
+  { id: 'outdoor-activities', label: 'Outdoor Activities', icon: '🥾', description: 'Hiking, parks, nature exploration' },
+  { id: 'adventure-sports', label: 'Adventure and Sports', icon: '⚽', description: 'Sports, extreme activities, fitness' },
+  { id: 'music-entertainment', label: 'Music and Entertainment', icon: '🎭', description: 'Concerts, shows, performances' },
   { id: 'shopping', label: 'Shopping', icon: '🛍️', description: 'Boutiques, markets, local crafts' },
-  { id: 'nightlife', label: 'Nightlife', icon: '🌃', description: 'Bars, clubs, evening entertainment' },
-  { id: 'architecture', label: 'Architecture', icon: '🏛️', description: 'Historic buildings, landmarks' },
-  { id: 'photography', label: 'Photography', icon: '📸', description: 'Scenic spots, Instagram-worthy' },
-  { id: 'wellness', label: 'Wellness & Spa', icon: '🧘', description: 'Relaxation, spa treatments' },
-  { id: 'sports', label: 'Sports & Fitness', icon: '⚽', description: 'Games, activities, workouts' },
-  { id: 'culture', label: 'Culture & History', icon: '🏺', description: 'Local traditions, historic sites' },
-  { id: 'entertainment', label: 'Entertainment', icon: '🎭', description: 'Shows, concerts, performances' },
-  { id: 'family', label: 'Family Activities', icon: '👨‍👩‍👧‍👦', description: 'Kid-friendly, all ages' }
+  { id: 'family-fun', label: 'Family Fun', icon: '👨‍👩‍👧‍👦', description: 'Kid-friendly, all ages activities' },
+  { id: 'wellness-relaxation', label: 'Wellness and Relaxation', icon: '🧘', description: 'Spa, yoga, relaxation' },
+  { id: 'learning-education', label: 'Learning and Education', icon: '📚', description: 'Workshops, tours, educational experiences' },
+  { id: 'photography-sightseeing', label: 'Photography and Sightseeing', icon: '📸', description: 'Scenic spots, landmarks, views' },
+  { id: 'local-life', label: 'Local Life and Community', icon: '🏘️', description: 'Markets, neighborhoods, local culture' }
 ];
 
 export default function InterestsStep() {

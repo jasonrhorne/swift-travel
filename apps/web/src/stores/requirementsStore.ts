@@ -16,10 +16,6 @@ export interface RequirementsFormState {
   interests: string[]; // Selected travel interests
   persona: PersonaType | null; // Legacy field, kept for compatibility
   duration: 'long-weekend'; // Fixed duration for long weekend trips
-  dates: {
-    startDate: Date | null;
-    endDate: Date | null;
-  };
   travelerComposition: TravelerComposition | null;
   groupSize: number;
   specialRequests: string[];
@@ -45,7 +41,6 @@ export interface RequirementsFormActions {
   setInterests: (interests: string[]) => void;
   setPersona: (persona: PersonaType) => void;
   setDuration: (duration: 'long-weekend') => void;
-  setDates: (startDate: Date, endDate: Date) => void;
   setTravelerComposition: (composition: TravelerComposition) => void;
   setGroupSize: (size: number) => void;
   addSpecialRequest: (request: string) => void;
@@ -91,10 +86,6 @@ const defaultState: RequirementsFormState = {
   interests: [],
   persona: null,
   duration: 'long-weekend',
-  dates: {
-    startDate: null,
-    endDate: null,
-  },
   travelerComposition: null,
   groupSize: 2,
   specialRequests: [],
@@ -144,13 +135,6 @@ export const useRequirementsStore = create<RequirementsStore>()(
       
       setDuration: (duration: 'long-weekend') => set((state) => {
         state.duration = duration;
-        state.isDirty = true;
-        state.lastSaved = new Date();
-      }),
-      
-      setDates: (startDate: Date, endDate: Date) => set((state) => {
-        state.dates.startDate = startDate;
-        state.dates.endDate = endDate;
         state.isDirty = true;
         state.lastSaved = new Date();
       }),
@@ -288,17 +272,22 @@ export const useRequirementsStore = create<RequirementsStore>()(
           return null;
         }
         
-        return {
+        const requirements: UserRequirements = {
           destination: state.destination,
           interests: state.interests,
-          persona: state.persona || 'photography', // Default persona for backward compatibility
           duration: state.duration,
-          budgetRange: 'mid-range', // Default budget for backward compatibility
           groupSize: state.groupSize,
           travelerComposition: state.travelerComposition,
           specialRequests: state.specialRequests,
           accessibilityNeeds: state.accessibilityNeeds,
-        } as UserRequirements; // Temporarily cast to UserRequirements until type is updated
+        };
+        
+        // Only include persona if it's set (backward compatibility)
+        if (state.persona) {
+          requirements.persona = state.persona;
+        }
+        
+        return requirements;
       },
       
       // Utility
@@ -342,7 +331,6 @@ export const useRequirementsStore = create<RequirementsStore>()(
         interests: state.interests,
         persona: state.persona,
         duration: state.duration,
-        dates: state.dates,
         travelerComposition: state.travelerComposition,
         groupSize: state.groupSize,
         specialRequests: state.specialRequests,

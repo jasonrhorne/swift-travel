@@ -52,6 +52,7 @@ interface ValidationResults {
     pendingCount: number;
     failedCount: number;
     averageConfidence: number;
+    familyFriendlyCount?: number;
   };
   apiUsage: {
     placesApiCalls: number;

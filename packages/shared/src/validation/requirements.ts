@@ -45,11 +45,15 @@ export const userRequirementsSchema = z.object({
     .max(100, "Destination must be less than 100 characters")
     .regex(/^[a-zA-Z\s,.-]+$/, "Destination contains invalid characters"),
   
-  persona: personaSchema,
+  persona: personaSchema.optional(), // Made optional for backward compatibility
+  
+  interests: z.array(z.string())
+    .min(1, "Please select at least one interest")
+    .max(12, "Maximum 12 interests allowed"),
   
   duration: durationSchema,
   
-  budgetRange: budgetRangeSchema,
+  budgetRange: budgetRangeSchema.optional(), // Made optional as per story 1.4
   
   groupSize: z.number()
     .int("Group size must be a whole number")
@@ -83,8 +87,9 @@ export const interestsStepSchema = z.object({
     .max(12, "Maximum 12 interests allowed"),
 });
 
+// Legacy persona step schema (deprecated - use interestsStepSchema instead)
 export const personaStepSchema = z.object({
-  persona: userRequirementsSchema.shape.persona,
+  persona: personaSchema.optional(),
 });
 
 export const travelersStepSchema = z.object({
@@ -122,7 +127,7 @@ export const formatValidationError = (error: z.ZodError) => {
 export const sanitizeStringInput = (input: string): string => {
   return input
     .trim()
-    .replace(/[\u0000-\u001F\u007F]/gu, '') // Remove control characters
+    .replace(/[\u0000-\u001F\u007F]/g, '') // Remove control characters
     .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
     .replace(/<[^>]*>/g, ''); // Remove HTML tags
 };

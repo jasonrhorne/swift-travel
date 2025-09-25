@@ -1,10 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRequirementsStore } from '@/stores/requirementsStore';
 
 export default function DurationStep() {
-  // For now, we're just setting a fixed duration for long weekends
-  // In the future, this could be expanded to allow different duration selections
+  const { duration, setDuration } = useRequirementsStore();
+  
+  // Set duration to long-weekend by default
+  useEffect(() => {
+    if (!duration) {
+      setDuration('long-weekend');
+    }
+  }, [duration, setDuration]);
   
   return (
     <div className="space-y-6">

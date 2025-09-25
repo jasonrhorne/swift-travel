@@ -9,12 +9,9 @@ global.fetch = mockFetch;
 describe('Itinerary API', () => {
   const mockUserRequirements: UserRequirements = {
     destination: 'Paris, France',
-    persona: 'photography',
-    dates: {
-      startDate: new Date('2024-12-01'),
-      endDate: new Date('2024-12-03')
-    },
-    budgetRange: 'mid-range',
+    interests: ['Photography', 'Food'],
+    duration: 'long-weekend',
+    travelerComposition: { adults: 2, children: 0, childrenAges: [] },
     groupSize: 2,
     specialRequests: ['Anniversary dinner'],
     accessibilityNeeds: ['Wheelchair accessible venues']

@@ -199,7 +199,8 @@ function calculateProcessingMetrics(
   // Calculate quality score (composite of various factors)
   const qualityScore = calculateQualityScore(
     validationResults.validationSummary?.averageConfidence || 0.5,
-    curationResults.curationMetadata?.personaAdherence || 0.8,
+    curationResults.curationMetadata?.interestAlignment || 0.8,
+    curationResults.curationMetadata?.childFriendliness,
     totalDuration
   );
 
@@ -216,11 +217,15 @@ function calculateProcessingMetrics(
  */
 function calculateQualityScore(
   validationConfidence: number,
-  personaAdherence: number,
+  interestAlignment: number,
+  childFriendliness: number | undefined,
   processingTime: number
 ): number {
-  // Base quality from validation and persona adherence
-  const baseQuality = validationConfidence * 0.4 + personaAdherence * 0.4;
+  // Base quality from validation and interest alignment
+  const baseQuality = validationConfidence * 0.4 + interestAlignment * 0.4;
+  
+  // Add child-friendliness factor if applicable
+  const familyBonus = childFriendliness ? childFriendliness * 0.1 : 0;
 
   // Time penalty (processing should be under 20 seconds)
   const timePenalty = processingTime > 20000 ? 0.1 : 0;
@@ -228,7 +233,7 @@ function calculateQualityScore(
   // Processing efficiency bonus
   const efficiencyBonus = processingTime < 15000 ? 0.1 : 0;
 
-  const finalScore = baseQuality + 0.2 + efficiencyBonus - timePenalty;
+  const finalScore = baseQuality + familyBonus + 0.1 + efficiencyBonus - timePenalty;
 
   return Math.min(Math.max(finalScore, 0), 1);
 }
@@ -297,7 +302,7 @@ function createFinalItinerary(
     id: itineraryId,
     userId: request.userId,
     destination: researchResults.destination,
-    persona: request.requirements.persona,
+    interests: request.requirements.interests || [],
     status: 'completed' as ItineraryStatus,
     activities,
     metadata,
@@ -318,7 +323,7 @@ async function storeItinerary(itinerary: Itinerary): Promise<void> {
         id: itinerary.id,
         user_id: itinerary.userId,
         destination: itinerary.destination,
-        persona: itinerary.persona,
+        interests: itinerary.interests,
         status: itinerary.status,
         metadata: itinerary.metadata,
         created_at: itinerary.createdAt.toISOString(),

@@ -4,7 +4,6 @@ import {
   destinationStepSchema,
   datesStepSchema,
   personaStepSchema,
-  preferencesStepSchema,
   requestsStepSchema,
   formatValidationError,
   sanitizeStringInput,
@@ -21,12 +20,8 @@ describe('Requirements Validation', () => {
     
     const validRequirements = {
       destination: 'Paris, France',
-      persona: 'photography' as const,
-      dates: {
-        startDate: futureDate1,
-        endDate: futureDate2
-      },
-      budgetRange: 'mid-range' as const,
+      interests: ['Photography', 'Food'],
+      duration: 'long-weekend' as const,
       groupSize: 2,
       specialRequests: ['Anniversary dinner'],
       accessibilityNeeds: ['Wheelchair accessible venues']
@@ -46,37 +41,12 @@ describe('Requirements Validation', () => {
       expect(() => userRequirementsSchema.parse(invalid)).toThrow();
     });
 
-    it('should reject invalid persona', () => {
-      const invalid = { ...validRequirements, persona: 'invalid' };
+    it('should reject empty interests array', () => {
+      const invalid = { ...validRequirements, interests: [] };
       expect(() => userRequirementsSchema.parse(invalid)).toThrow();
     });
 
-    it('should reject past start date', () => {
-      const invalid = { 
-        ...validRequirements, 
-        dates: { 
-          startDate: new Date('2020-01-01'), 
-          endDate: new Date('2020-01-03') 
-        } 
-      };
-      expect(() => userRequirementsSchema.parse(invalid)).toThrow();
-    });
 
-    it('should reject end date before start date', () => {
-      const futureStart = new Date();
-      futureStart.setDate(futureStart.getDate() + 32);
-      const futureEnd = new Date();
-      futureEnd.setDate(futureEnd.getDate() + 30);
-      
-      const invalid = { 
-        ...validRequirements, 
-        dates: { 
-          startDate: futureStart, 
-          endDate: futureEnd 
-        } 
-      };
-      expect(() => userRequirementsSchema.parse(invalid)).toThrow();
-    });
 
     it('should reject group size of 0', () => {
       const invalid = { ...validRequirements, groupSize: 0 };
@@ -131,10 +101,6 @@ describe('Requirements Validation', () => {
       expect(() => personaStepSchema.parse(valid)).not.toThrow();
     });
 
-    it('should validate preferences step', () => {
-      const valid = { budgetRange: 'mid-range' as const, groupSize: 2 };
-      expect(() => preferencesStepSchema.parse(valid)).not.toThrow();
-    });
 
     it('should validate requests step', () => {
       const valid = { 

@@ -4,8 +4,6 @@ import {
   ItineraryRequest,
   ProcessingStatus,
   UserRequirements,
-  PersonaType,
-  BudgetRange,
 } from '@swift-travel/shared';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -93,12 +91,9 @@ describe('Agent Pipeline Integration Tests', () => {
       itineraryId: null,
       requirements: {
         destination: 'Paris, France',
-        persona: 'photography' as PersonaType,
-        dates: {
-          startDate: new Date('2024-06-01'),
-          endDate: new Date('2024-06-05'),
-        },
-        budgetRange: 'mid-range' as BudgetRange,
+        interests: ['Photography', 'Food'],
+        duration: 'long-weekend' as const,
+        travelerComposition: { adults: 2, children: 0, childrenAges: [] },
         groupSize: 2,
         specialRequests: ['romantic spots'],
         accessibilityNeeds: [],

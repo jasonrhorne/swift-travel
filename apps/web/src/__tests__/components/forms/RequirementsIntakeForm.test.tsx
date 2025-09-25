@@ -1,7 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import RequirementsIntakeForm from '../../../components/forms/RequirementsIntakeForm';
 import { useRequirementsStore } from '../../../stores/requirementsStore';
@@ -18,14 +17,14 @@ vi.mock('../../../lib/api/itinerary', () => ({
 vi.mock('../../../components/forms/steps/DestinationStep', () => ({
   default: () => <div data-testid="destination-step">Destination Step</div>,
 }));
-vi.mock('../../../components/forms/steps/DatesStep', () => ({
-  default: () => <div data-testid="dates-step">Dates Step</div>,
+vi.mock('../../../components/forms/steps/DurationStep', () => ({
+  default: () => <div data-testid="duration-step">Duration Step</div>,
 }));
-vi.mock('../../../components/forms/steps/PersonaStep', () => ({
-  default: () => <div data-testid="persona-step">Persona Step</div>,
+vi.mock('../../../components/forms/steps/InterestsStep', () => ({
+  default: () => <div data-testid="interests-step">Interests Step</div>,
 }));
-vi.mock('../../../components/forms/steps/PreferencesStep', () => ({
-  default: () => <div data-testid="preferences-step">Preferences Step</div>,
+vi.mock('../../../components/forms/steps/TravelersStep', () => ({
+  default: () => <div data-testid="travelers-step">Travelers Step</div>,
 }));
 vi.mock('../../../components/forms/steps/RequestsStep', () => ({
   default: () => <div data-testid="requests-step">Requests Step</div>,
@@ -68,9 +67,10 @@ describe('RequirementsIntakeForm', () => {
     
     // Form data
     destination: '',
+    duration: 'long-weekend',
+    interests: [],
     persona: null,
-    dates: { startDate: null, endDate: null },
-    budgetRange: null,
+    travelerComposition: null,
     groupSize: 2,
     specialRequests: [],
     accessibilityNeeds: [],
@@ -181,12 +181,9 @@ describe('RequirementsIntakeForm', () => {
         currentStep: 4, // Last step
         exportUserRequirements: vi.fn(() => ({
           destination: 'Paris, France',
-          persona: 'photography' as const,
-          dates: {
-            startDate: new Date('2024-12-01'),
-            endDate: new Date('2024-12-03'),
-          },
-          budgetRange: 'mid-range' as const,
+          interests: ['Photography', 'Food'],
+          duration: 'long-weekend' as const,
+          travelerComposition: { adults: 2, children: 0, childrenAges: [] },
           groupSize: 2,
           specialRequests: [],
           accessibilityNeeds: [],
@@ -239,12 +236,9 @@ describe('RequirementsIntakeForm', () => {
         currentStep: 4, // Last step
         exportUserRequirements: vi.fn(() => ({
           destination: 'Paris, France',
-          persona: 'photography' as const,
-          dates: {
-            startDate: new Date('2024-12-01'),
-            endDate: new Date('2024-12-03'),
-          },
-          budgetRange: 'mid-range' as const,
+          interests: ['Photography', 'Food'],
+          duration: 'long-weekend' as const,
+          travelerComposition: { adults: 2, children: 0, childrenAges: [] },
           groupSize: 2,
           specialRequests: [],
           accessibilityNeeds: [],
