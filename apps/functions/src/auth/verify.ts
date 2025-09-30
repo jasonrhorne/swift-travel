@@ -2,11 +2,12 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import Redis from 'ioredis';
 import { randomBytes } from 'crypto';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import pino from 'pino';
 import { z } from 'zod';
-import { authConfig } from '@swift-travel/shared/config/auth';
-import type { VerifyTokenResponse, User, AuthError, SessionToken } from '@swift-travel/shared';
+import { authConfig } from '@swift-travel/shared';
+import type { VerifyTokenResponse, User, SessionToken } from '@swift-travel/shared';
+import { createAuthErrorResponse, createAuthSuccessResponse } from '../shared/auth-response';
 
 // Initialize logger
 const logger = pino({
@@ -152,34 +153,20 @@ export const handler: Handler = async (event) => {
   try {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
-      return {
-        statusCode: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        },
-        body: JSON.stringify({ 
-          error: 'Method not allowed',
-          message: 'Only POST requests are allowed' 
-        })
-      };
+      return createAuthErrorResponse(
+        405,
+        'Only POST requests are allowed',
+        'METHOD_NOT_ALLOWED'
+      );
     }
     
     // Parse and validate request body
     if (!event.body) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ 
-          error: 'Missing request body',
-          message: 'Request body is required' 
-        })
-      };
+      return createAuthErrorResponse(
+        400,
+        'Request body is required',
+        'MISSING_BODY'
+      );
     }
     
     const body = JSON.parse(event.body);
@@ -187,17 +174,11 @@ export const handler: Handler = async (event) => {
     
     if (!validation.success) {
       logger.warn({ requestId, errors: validation.error.errors }, 'Invalid request data');
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          error: 'Invalid request data',
-          message: validation.error.errors[0].message
-        })
-      };
+      return createAuthErrorResponse(
+        400,
+        validation.error.errors[0].message,
+        'INVALID_DATA'
+      );
     }
     
     const { token } = validation.data;
@@ -207,17 +188,11 @@ export const handler: Handler = async (event) => {
     const tokenValidation = await validateMagicToken(token);
     if (!tokenValidation.valid || !tokenValidation.email) {
       logger.warn({ requestId, token: token.substring(0, 8) + '...' }, 'Invalid or expired token');
-      return {
-        statusCode: 401,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          error: 'Invalid token',
-          message: 'The magic link token is invalid or has expired'
-        })
-      };
+      return createAuthErrorResponse(
+        401,
+        'The magic link token is invalid or has expired',
+        'INVALID_TOKEN'
+      );
     }
     
     // Consume the token (single use)
@@ -241,36 +216,24 @@ export const handler: Handler = async (event) => {
       success: true
     };
     
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+    return createAuthSuccessResponse(
+      response,
+      200,
+      {
         'Set-Cookie': `session=${sessionToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=${authConfig.sessionExpirationHours * 3600}; Path=/`
-      },
-      body: JSON.stringify(response)
-    };
+      }
+    );
     
   } catch (error) {
-    logger.error({ requestId, error: error.message, stack: error.stack }, 'Token verification failed');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error({ requestId, error: errorMessage, stack: errorStack }, 'Token verification failed');
     
-    const authError: AuthError = {
-      code: 'INTERNAL_ERROR',
-      message: 'An internal error occurred while verifying your token',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    };
-    
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({
-        error: authError.code,
-        message: authError.message,
-        details: authError.details
-      })
-    };
+    return createAuthErrorResponse(
+      500,
+      'An internal error occurred while verifying your token',
+      'INTERNAL_ERROR',
+      process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    );
   }
 };

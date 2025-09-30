@@ -100,7 +100,7 @@ class EmailService {
             }, 'Email send attempt failed');
           }
         } catch (error) {
-          lastError = error.message || 'Unknown error';
+          lastError = error instanceof Error ? error.message : 'Unknown error';
           logger.error({ 
             to, 
             provider: provider.name, 

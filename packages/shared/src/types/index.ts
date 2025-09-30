@@ -16,11 +16,14 @@ export type ProcessingStatus =
   | 'completed'
   | 'failed';
 
-export type AgentProcessingLog =
-  | 'research'
-  | 'curation'
-  | 'validation'
-  | 'response';
+export interface AgentProcessingLog {
+  agent: 'research' | 'curation' | 'validation' | 'response';
+  startTime: Date;
+  endTime: Date | null;
+  status: ProcessingStatus;
+  data: any;
+  error: any | null;
+}
 
 export interface ProcessingError {
   message: string;

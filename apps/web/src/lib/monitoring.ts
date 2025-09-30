@@ -71,3 +71,14 @@ export function trackUserAction(action: string, data?: Record<string, any>) {
     category: 'user',
   });
 }
+
+// Performance monitoring interface expected by hooks
+export const performanceMonitoring = {
+  trackEvent(eventName: string, metadata: Record<string, unknown>) {
+    Sentry.addBreadcrumb({
+      message: `Performance: ${eventName}`,
+      data: metadata,
+      category: 'performance',
+    });
+  }
+};

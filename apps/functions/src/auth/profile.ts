@@ -6,9 +6,9 @@ import { z } from 'zod';
 import { authConfig } from '@swift-travel/shared';
 import {
   validateSession,
-  createAuthErrorResponse,
 } from '../shared/auth-middleware';
-import type { User, AuthError } from '@swift-travel/shared';
+import { createAuthErrorResponse, createAuthSuccessResponse } from '../shared/auth-response';
+import type { User } from '@swift-travel/shared';
 
 // Initialize logger
 const logger = pino({
@@ -152,21 +152,17 @@ export const handler: Handler = async event => {
   try {
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-        body: '',
-      };
+      return createAuthSuccessResponse('', 200);
     }
 
     // Validate session
     const authResult = await validateSession(event);
     if (!authResult.success) {
-      return createAuthErrorResponse(authResult.error);
+      return createAuthErrorResponse(
+        authResult.error!.statusCode,
+        authResult.error!.message,
+        authResult.error!.code
+      );
     }
 
     const { user } = authResult.context!;
@@ -182,32 +178,18 @@ export const handler: Handler = async event => {
       // Get user's itineraries for ownership info
       const itineraries = await getUserItineraries(user.userId);
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({
-          user: profile,
-          itineraries: itineraries,
-          success: true,
-        }),
-      };
+      return createAuthSuccessResponse({
+        user: profile,
+        itineraries: itineraries,
+      });
     } else if (event.httpMethod === 'PUT') {
       // Update user profile
       if (!event.body) {
-        return {
-          statusCode: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-          body: JSON.stringify({
-            error: 'Missing request body',
-            message: 'Request body is required for profile updates',
-          }),
-        };
+        return createAuthErrorResponse(
+          400,
+          'Request body is required for profile updates',
+          'MISSING_BODY'
+        );
       }
 
       const body = JSON.parse(event.body);
@@ -218,17 +200,11 @@ export const handler: Handler = async event => {
           { requestId, errors: validation.error.errors },
           'Invalid profile update data'
         );
-        return {
-          statusCode: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-          body: JSON.stringify({
-            error: 'Invalid request data',
-            message: validation.error.errors[0].message,
-          }),
-        };
+        return createAuthErrorResponse(
+          400,
+          validation.error.errors[0].message,
+          'INVALID_DATA'
+        );
       }
 
       // Update profile
@@ -246,30 +222,15 @@ export const handler: Handler = async event => {
         'Profile updated successfully'
       );
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({
-          user: updatedProfile,
-          success: true,
-        }),
-      };
+      return createAuthSuccessResponse({
+        user: updatedProfile,
+      });
     } else {
-      return {
-        statusCode: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
-        },
-        body: JSON.stringify({
-          error: 'Method not allowed',
-          message: 'Only GET and PUT methods are allowed',
-        }),
-      };
+      return createAuthErrorResponse(
+        405,
+        'Only GET and PUT methods are allowed',
+        'METHOD_NOT_ALLOWED'
+      );
     }
   } catch (error) {
     const errorMessage =
@@ -280,25 +241,11 @@ export const handler: Handler = async event => {
       'Profile request failed'
     );
 
-    const authError: AuthError = {
-      code: 'INTERNAL_ERROR',
-      message:
-        'An internal error occurred while processing your profile request',
-      details:
-        process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-    };
-
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        error: authError.code,
-        message: authError.message,
-        details: authError.details,
-      }),
-    };
+    return createAuthErrorResponse(
+      500,
+      'An internal error occurred while processing your profile request',
+      'INTERNAL_ERROR',
+      process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    );
   }
 };

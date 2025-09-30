@@ -4,7 +4,8 @@ import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import pino from 'pino';
 import { authConfig } from '@swift-travel/shared';
-import type { SessionToken, AuthError } from '@swift-travel/shared';
+import type { SessionToken } from '@swift-travel/shared';
+import { createAuthErrorResponse, createAuthSuccessResponse } from '../shared/auth-response';
 
 // Initialize logger
 const logger = pino({
@@ -86,19 +87,7 @@ export const handler: Handler = async event => {
   try {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
-      return {
-        statusCode: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-        body: JSON.stringify({
-          error: 'Method not allowed',
-          message: 'Only POST requests are allowed',
-        }),
-      };
+      return createAuthErrorResponse(405, 'Method not allowed: Only POST requests are allowed');
     }
 
     // Extract and validate session token
@@ -109,17 +98,7 @@ export const handler: Handler = async event => {
       !tokenValidation.payload
     ) {
       logger.warn({ requestId }, 'No valid session token found');
-      return {
-        statusCode: 401,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({
-          error: 'No valid session',
-          message: 'No valid session token found',
-        }),
-      };
+      return createAuthErrorResponse(401, 'No valid session token found');
     }
 
     const { token, payload } = tokenValidation;
@@ -144,19 +123,12 @@ export const handler: Handler = async event => {
       'Logout successful'
     );
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Set-Cookie':
-          'session=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/', // Clear the session cookie
-      },
-      body: JSON.stringify({
-        message: 'Logged out successfully',
-        success: true,
-      }),
-    };
+    return createAuthSuccessResponse({
+      message: 'Logged out successfully',
+      success: true,
+    }, 200, {
+      'Set-Cookie': 'session=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/'
+    });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -166,24 +138,8 @@ export const handler: Handler = async event => {
       'Logout failed'
     );
 
-    const authError: AuthError = {
-      code: 'INTERNAL_ERROR',
-      message: 'An internal error occurred during logout',
-      details:
-        process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-    };
-
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        error: authError.code,
-        message: authError.message,
-        details: authError.details,
-      }),
-    };
+    return createAuthErrorResponse(500, 'An internal error occurred during logout', 'INTERNAL_ERROR',
+      process.env.NODE_ENV === 'development' ? { details: errorMessage } : undefined
+    );
   }
 };

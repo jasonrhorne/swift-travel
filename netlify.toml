@@ -1,13 +1,13 @@
 [build]
-  publish = "apps/web/out"
-  command = "npm run build"
+  publish = "apps/web/out" 
+  command = "npm run build:web && npm run build:functions"
 
 [build.environment]
   NODE_VERSION = "20"
 
 # Function settings
 [functions]
-  directory = "apps/functions/dist"
+  directory = "apps/functions/dist/apps/functions/src"
 
 # Redirect rules for SPA
 [[redirects]]

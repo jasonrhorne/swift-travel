@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
 import pino from 'pino';
 import { authConfig } from '@swift-travel/shared';
@@ -41,7 +41,8 @@ async function isTokenRevoked(jti: string): Promise<boolean> {
     const result = await redis.get(key);
     return result === 'revoked';
   } catch (error) {
-    logger.error({ jti, error: error.message }, 'Failed to check token revocation status');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error({ jti, error: errorMessage }, 'Failed to check token revocation status');
     return false; // Fail open for availability
   }
 }
@@ -88,7 +89,7 @@ export async function validateSession(event: any): Promise<AuthValidationResult>
     try {
       payload = jwt.verify(token, authConfig.jwtSecret) as SessionToken;
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
+      if (error instanceof Error && error.name === 'TokenExpiredError') {
         return {
           success: false,
           error: {
@@ -97,7 +98,7 @@ export async function validateSession(event: any): Promise<AuthValidationResult>
             statusCode: 401
           }
         };
-      } else if (error.name === 'JsonWebTokenError') {
+      } else if (error instanceof Error && error.name === 'JsonWebTokenError') {
         return {
           success: false,
           error: {
@@ -155,7 +156,8 @@ export async function validateSession(event: any): Promise<AuthValidationResult>
     };
     
   } catch (error) {
-    logger.error({ error: error.message }, 'Session validation failed');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error({ error: errorMessage }, 'Session validation failed');
     return {
       success: false,
       error: {

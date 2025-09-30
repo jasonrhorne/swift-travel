@@ -63,8 +63,9 @@ export async function handler(event: any) {
     });
 
   } catch (error) {
-    logger.error('Error processing itinerary request', { error });
-    return createErrorResponse(500, 'Processing failed', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Error processing itinerary request', { error: errorMessage });
+    return createErrorResponse(500, 'Processing failed', { error: errorMessage });
   }
 }
 
@@ -116,7 +117,7 @@ async function initializeProcessing(request: ItineraryRequest, startTime: number
     agent: 'research',
     startTime: new Date(startTime),
     endTime: null,
-    status: 'running',
+    status: 'research-in-progress',
     data: { initialized: true },
     error: null
   };
@@ -256,7 +257,7 @@ export async function completeAgentProcessing(
         agent: nextAgent,
         startTime: new Date(),
         endTime: null,
-        status: 'running',
+        status: 'research-in-progress',
         data: {},
         error: null
       };

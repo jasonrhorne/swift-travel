@@ -4,7 +4,8 @@ import { randomBytes } from 'crypto';
 import pino from 'pino';
 import { z } from 'zod';
 import { authConfig } from '@swift-travel/shared';
-import type { MagicLinkResponse, AuthError } from '@swift-travel/shared';
+import type { MagicLinkResponse } from '@swift-travel/shared';
+import { createAuthResponse, createAuthErrorResponse, createAuthSuccessResponse } from '../shared/auth-response';
 
 // Initialize logger
 const logger = pino({
@@ -98,34 +99,20 @@ export const handler: Handler = async (event) => {
   try {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
-      return {
-        statusCode: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        },
-        body: JSON.stringify({ 
-          error: 'Method not allowed',
-          message: 'Only POST requests are allowed' 
-        })
-      };
+      return createAuthErrorResponse(
+        405,
+        'Only POST requests are allowed',
+        'METHOD_NOT_ALLOWED'
+      );
     }
     
     // Parse and validate request body
     if (!event.body) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ 
-          error: 'Missing request body',
-          message: 'Request body is required' 
-        })
-      };
+      return createAuthErrorResponse(
+        400,
+        'Request body is required',
+        'MISSING_BODY'
+      );
     }
     
     const body = JSON.parse(event.body);
@@ -133,17 +120,11 @@ export const handler: Handler = async (event) => {
     
     if (!validation.success) {
       logger.warn({ requestId, errors: validation.error.errors }, 'Invalid request data');
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          error: 'Invalid request data',
-          message: validation.error.errors[0].message
-        })
-      };
+      return createAuthErrorResponse(
+        400,
+        validation.error.errors[0].message,
+        'INVALID_DATA'
+      );
     }
     
     const { email } = validation.data;
@@ -153,19 +134,18 @@ export const handler: Handler = async (event) => {
     const rateLimit = await checkRateLimit(email);
     if (!rateLimit.allowed) {
       logger.warn({ requestId, email }, 'Rate limit exceeded');
-      return {
-        statusCode: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+      return createAuthResponse(
+        429,
+        {
+          error: 'RATE_LIMIT_EXCEEDED',
+          message: `Rate limit exceeded. Please wait ${authConfig.rateLimitWindowMinutes} minutes before requesting another magic link.`,
+          timestamp: new Date().toISOString()
+        },
+        {
           'X-RateLimit-Remaining': '0',
           'X-RateLimit-Reset': (Date.now() + (authConfig.rateLimitWindowMinutes * 60 * 1000)).toString()
-        },
-        body: JSON.stringify({
-          error: 'Too many requests',
-          message: `Rate limit exceeded. Please wait ${authConfig.rateLimitWindowMinutes} minutes before requesting another magic link.`
-        })
-      };
+        }
+      );
     }
     
     // Generate magic token
@@ -188,37 +168,23 @@ export const handler: Handler = async (event) => {
       success: true
     };
     
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+    return createAuthSuccessResponse(
+      response,
+      200,
+      {
         'X-RateLimit-Remaining': rateLimit.remaining.toString()
-      },
-      body: JSON.stringify(response)
-    };
+      }
+    );
     
   } catch (error) {
     const err = error as Error;
     logger.error({ requestId, error: err.message, stack: err.stack }, 'Magic link request failed');
     
-    const authError: AuthError = {
-      code: 'INTERNAL_ERROR',
-      message: 'An internal error occurred while processing your request',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
-    };
-    
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({
-        error: authError.code,
-        message: authError.message,
-        details: authError.details
-      })
-    };
+    return createAuthErrorResponse(
+      500,
+      'An internal error occurred while processing your request',
+      'INTERNAL_ERROR',
+      process.env.NODE_ENV === 'development' ? err.message : undefined
+    );
   }
 };
