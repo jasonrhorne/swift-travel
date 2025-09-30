@@ -1,13 +1,13 @@
 [build]
   publish = "apps/web/out" 
-  command = "npm run build:web && npm run build:functions"
+  command = "npm run build:web && npm run build:functions && mkdir -p netlify-functions && cp -r apps/functions/dist/apps/functions/src/* netlify-functions/"
 
 [build.environment]
   NODE_VERSION = "20"
 
 # Function settings
 [functions]
-  directory = "apps/functions/dist/apps/functions/src"
+  directory = "netlify-functions"
 
 # Redirect rules for SPA
 [[redirects]]
