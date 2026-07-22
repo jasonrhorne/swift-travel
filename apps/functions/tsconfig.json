@@ -20,13 +20,6 @@
     },
     "baseUrl": "."
   },
-  "include": [
-    "src/**/*",
-    "../../packages/shared/src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "__tests__"
-  ]
+  "include": ["src/**/*", "../../packages/shared/src/**/*"],
+  "exclude": ["node_modules", "dist", "src/__tests__"]
 }
