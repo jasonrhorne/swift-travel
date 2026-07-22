@@ -1,0 +1,640 @@
+openapi: 3.1.0
+info:
+  title: Swift Travel - Itinerary Generation API
+  version: 1.0.0
+  description: |
+    AI-powered travel concierge API for domestic US long-weekend trips.
+
+    ## Flow
+    1. POST /itinerary-requests — submit travel requirements
+    2. GET  /itinerary-requests/{id}/status — poll processing status (or use SSE)
+    3. GET  /itineraries/{id} — retrieve the completed itinerary
+
+    ## Agent Pipeline (internal)
+    research → curation → validation → response
+    Each agent is a Netlify Function invoked via X-Internal-Token header.
+servers:
+  - url: http://localhost:8888/.netlify/functions
+    description: Local dev (netlify dev)
+  - url: https://{site}.netlify.app/.netlify/functions
+    description: Deployed
+
+paths:
+  /itineraries/process-request:
+    post:
+      operationId: createItineraryRequest
+      summary: Submit travel requirements and start processing
+      tags: [Itinerary Requests]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItineraryRequest'
+      responses:
+        '202':
+          description: Processing initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_ProcessingAccepted'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+
+  /itineraries/status:
+    get:
+      operationId: getItineraryRequestStatus
+      summary: Poll processing status
+      tags: [Itinerary Requests]
+      parameters:
+        - name: requestId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current processing status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_ProcessingStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /itineraries/{id}:
+    get:
+      operationId: getItinerary
+      summary: Retrieve a completed itinerary
+      tags: [Itineraries]
+      parameters:
+        - $ref: '#/components/parameters/ItineraryId'
+      responses:
+        '200':
+          description: Itinerary details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_Itinerary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Internal agent endpoints (X-Internal-Token auth) ──────────────
+  /agents-research:
+    post:
+      operationId: runResearchAgent
+      summary: Execute the research agent (internal)
+      tags: [Internal Agents]
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+      responses:
+        '200':
+          description: Research completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_AgentResult'
+        '500':
+          $ref: '#/components/responses/AgentError'
+
+  /agents-curation:
+    post:
+      operationId: runCurationAgent
+      summary: Execute the curation agent (internal)
+      tags: [Internal Agents]
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+      responses:
+        '200':
+          description: Curation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_AgentResult'
+
+  /agents-validation:
+    post:
+      operationId: runValidationAgent
+      summary: Execute the validation agent (internal)
+      tags: [Internal Agents]
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+      responses:
+        '200':
+          description: Validation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_AgentResult'
+
+  /agents-response:
+    post:
+      operationId: runResponseAgent
+      summary: Execute the response agent (internal)
+      tags: [Internal Agents]
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+      responses:
+        '200':
+          description: Response completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse_AgentResult'
+
+components:
+  securitySchemes:
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+
+  parameters:
+    ItineraryId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # ── Request bodies ──────────────────────────────────────────────
+    CreateItineraryRequest:
+      type: object
+      required: [requirements]
+      properties:
+        requirements:
+          $ref: '#/components/schemas/UserRequirements'
+
+    UserRequirements:
+      type: object
+      required: [destination, interests, groupSize]
+      properties:
+        destination:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: US city, state, or region (e.g. "Portland, OR")
+        interests:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 12
+          description: Primary travel interests
+        duration:
+          type: string
+          enum: [long-weekend]
+          default: long-weekend
+        budgetRange:
+          type: string
+          enum: [budget, mid-range, luxury, no-limit]
+        groupSize:
+          type: integer
+          minimum: 1
+          maximum: 20
+        travelerComposition:
+          $ref: '#/components/schemas/TravelerComposition'
+        specialRequests:
+          type: array
+          items:
+            type: string
+            maxLength: 500
+          maxItems: 5
+        accessibilityNeeds:
+          type: array
+          items:
+            type: string
+            maxLength: 200
+          maxItems: 10
+
+    TravelerComposition:
+      type: object
+      required: [adults, children, childrenAges]
+      properties:
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 10
+        children:
+          type: integer
+          minimum: 0
+          maximum: 10
+        childrenAges:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 17
+
+    AgentRequest:
+      type: object
+      required: [requestId]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+
+    # ── Processing status ───────────────────────────────────────────
+    ProcessingStatus:
+      type: string
+      enum:
+        - initiated
+        - research-in-progress
+        - research-completed
+        - curation-in-progress
+        - curation-completed
+        - validation-in-progress
+        - validation-completed
+        - response-in-progress
+        - completed
+        - failed
+
+    ProcessingStatusResponse:
+      type: object
+      required: [requestId, status, progress]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        itineraryId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProcessingStatus'
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Percentage complete
+        currentAgent:
+          type: string
+          nullable: true
+          enum: [research, curation, validation, response, null]
+        estimatedTimeRemaining:
+          type: integer
+          description: Seconds remaining
+        error:
+          type: object
+          nullable: true
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    # ── Itinerary ───────────────────────────────────────────────────
+    Itinerary:
+      type: object
+      required:
+        [
+          id,
+          userId,
+          destination,
+          status,
+          activities,
+          metadata,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        destination:
+          type: object
+          properties:
+            name:
+              type: string
+            city:
+              type: string
+            region:
+              type: string
+            country:
+              type: string
+              enum: [USA, Canada]
+            timeZone:
+              type: string
+            coordinates:
+              $ref: '#/components/schemas/Coordinates'
+        interests:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [draft, validated, finalized, archived]
+        activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+        metadata:
+          $ref: '#/components/schemas/ItineraryMetadata'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Activity:
+      type: object
+      required: [id, name, description, category, timing, location]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum:
+            [
+              food,
+              sightseeing,
+              activity,
+              transport,
+              accommodation,
+              shopping,
+              entertainment,
+            ]
+        timing:
+          $ref: '#/components/schemas/ActivityTiming'
+        location:
+          $ref: '#/components/schemas/ActivityLocation'
+        estimatedCost:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+            currency:
+              type: string
+        validation:
+          $ref: '#/components/schemas/ValidationResult'
+        personaContext:
+          type: object
+          properties:
+            reasoning:
+              type: string
+            highlights:
+              type: array
+              items:
+                type: string
+            tips:
+              type: array
+              items:
+                type: string
+
+    ActivityTiming:
+      type: object
+      properties:
+        dayNumber:
+          type: integer
+        startTime:
+          type: string
+        duration:
+          type: integer
+          description: Minutes
+        flexibility:
+          type: string
+          enum: [fixed, flexible, preferred]
+        bufferTime:
+          type: integer
+
+    ActivityLocation:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        neighborhood:
+          type: string
+        googlePlaceId:
+          type: string
+          nullable: true
+
+    Coordinates:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+
+    ValidationResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, validated, verified, failed]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        googlePlaceId:
+          type: string
+          nullable: true
+        issues:
+          type: array
+          items:
+            type: string
+
+    ItineraryMetadata:
+      type: object
+      properties:
+        processingTimeSeconds:
+          type: integer
+        qualityScore:
+          type: number
+        costEstimate:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+            currency:
+              type: string
+        validationResults:
+          type: object
+          properties:
+            overallScore:
+              type: number
+            checks:
+              type: object
+              properties:
+                locationVerified:
+                  type: boolean
+                timingRealistic:
+                  type: boolean
+                accessibilityChecked:
+                  type: boolean
+                costEstimated:
+                  type: boolean
+
+    # ── Agent result (internal) ─────────────────────────────────────
+    AgentResult:
+      type: object
+      required: [requestId, status, processingTime]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        processingTime:
+          type: integer
+          description: Milliseconds
+
+    # ── Generic wrapper ─────────────────────────────────────────────
+    ApiResponse_ProcessingAccepted:
+      type: object
+      required: [success, data, timestamp]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            requestId:
+              type: string
+              format: uuid
+            status:
+              $ref: '#/components/schemas/ProcessingStatus'
+            message:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ApiResponse_ProcessingStatus:
+      type: object
+      required: [success, data, timestamp]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/ProcessingStatusResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    ApiResponse_Itinerary:
+      type: object
+      required: [success, data, timestamp]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/Itinerary'
+        timestamp:
+          type: string
+          format: date-time
+
+    ApiResponse_AgentResult:
+      type: object
+      required: [success, data, timestamp]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/AgentResult'
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [success, error, timestamp]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    MethodNotAllowed:
+      description: HTTP method not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AgentError:
+      description: Agent processing failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

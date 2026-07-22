@@ -1,22 +1,124 @@
 import { z } from 'zod';
-import type { 
-  User, 
-  UserPreferences, 
-  Itinerary, 
-  Activity, 
-  ItineraryRequest,
-  PersonaType,
-  BudgetRange,
-  ActivityCategory,
-  ItineraryStatus,
-  ProcessingStatus 
-} from '@swift-travel/shared';
-
 // Zod schemas for validation
-export const PersonaTypeSchema = z.enum(['photography', 'food-forward', 'architecture', 'family']);
-export const BudgetRangeSchema = z.enum(['budget', 'mid-range', 'luxury', 'no-limit']);
-export const ActivityCategorySchema = z.enum(['dining', 'sightseeing', 'culture', 'nature', 'shopping', 'nightlife', 'transport']);
-export const ItineraryStatusSchema = z.enum(['processing', 'completed', 'failed', 'archived']);
+export const PersonaTypeSchema = z.enum([
+  'photography',
+  'food-forward',
+  'architecture',
+  'family',
+]);
+export const BudgetRangeSchema = z.enum([
+  'budget',
+  'mid-range',
+  'luxury',
+  'no-limit',
+]);
+export const ActivityCategorySchema = z.enum([
+  'dining',
+  'sightseeing',
+  'culture',
+  'nature',
+  'shopping',
+  'nightlife',
+  'transport',
+]);
+export const ItineraryStatusSchema = z.enum([
+  'processing',
+  'completed',
+  'failed',
+  'archived',
+]);
+
+// ── Research Entries (Phase 1) ──────────────────────────────────────
+export const ResearchInterestSchema = z.enum([
+  'food',
+  'arts-culture',
+  'nightlife',
+  'outdoors',
+  'shopping',
+]);
+
+export const ValidationStatusSchema = z.enum([
+  'unverified',
+  'verified',
+  'rejected',
+]);
+
+export const ResearchSourceSchema = z.object({
+  title: z.string(),
+  url: z.string().url(),
+  snippet: z.string().optional(),
+});
+
+export const EstimatedCostSchema = z
+  .object({
+    min: z.number().min(0),
+    max: z.number().min(0),
+    currency: z.string().default('USD'),
+  })
+  .optional();
+
+export const HoursSchema = z
+  .object({
+    monday: z.string().optional(),
+    tuesday: z.string().optional(),
+    wednesday: z.string().optional(),
+    thursday: z.string().optional(),
+    friday: z.string().optional(),
+    saturday: z.string().optional(),
+    sunday: z.string().optional(),
+    note: z.string().optional(),
+  })
+  .optional();
+
+export const ValidationDetailsSchema = z
+  .object({
+    googlePlaceId: z.string().nullable().optional(),
+    confidence: z.number().min(0).max(1).optional(),
+    issues: z.array(z.string()).default([]),
+    verifiedAt: z.string().datetime().optional(),
+  })
+  .default({});
+
+export const ResearchEntrySchema = z.object({
+  id: z.string().uuid(),
+  requestId: z.string().uuid().nullable(),
+  destination: z.string().min(1),
+  interest: ResearchInterestSchema,
+  name: z.string().min(1),
+  entryType: z.string().min(1),
+  description: z.string().min(1),
+  whyRecommended: z.string().min(1),
+  estimatedCost: EstimatedCostSchema,
+  coordinates: z
+    .object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    })
+    .nullable(),
+  address: z.string().nullable(),
+  hours: HoursSchema,
+  sources: z.array(ResearchSourceSchema).default([]),
+  googlePlaceId: z.string().nullable(),
+  validationStatus: ValidationStatusSchema.default('unverified'),
+  validationDetails: ValidationDetailsSchema,
+  researchedAt: z.string().datetime(),
+  validatedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+/** Insert shape — omits auto-generated fields (id, timestamps). */
+export const ResearchEntryInsertSchema = ResearchEntrySchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  validatedAt: true,
+});
+
+export type ResearchInterest = z.infer<typeof ResearchInterestSchema>;
+export type ValidationStatus = z.infer<typeof ValidationStatusSchema>;
+export type ResearchSource = z.infer<typeof ResearchSourceSchema>;
+export type ResearchEntry = z.infer<typeof ResearchEntrySchema>;
 
 export const UserPreferencesSchema = z.object({
   defaultPersona: PersonaTypeSchema.nullable(),

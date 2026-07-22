@@ -17,6 +17,7 @@ interface ApiConfig {
   googlePlacesApiKey: string;
   googleMapsApiKey: string;
   internalApiKey: string;
+  tavilyApiKey: string;
 }
 
 interface AppConfig {
@@ -33,7 +34,7 @@ interface AppConfig {
 
 function getEnvVar(key: string, required: boolean = true): string {
   const value = process.env[key];
-  
+
   // In development mode, provide default values for missing env vars
   if (process.env.NODE_ENV === 'development' && !value) {
     const devDefaults: Record<string, string> = {
@@ -46,14 +47,15 @@ function getEnvVar(key: string, required: boolean = true): string {
       GOOGLE_PLACES_API_KEY: 'dummy-places-key',
       GOOGLE_MAPS_API_KEY: 'dummy-maps-key',
       INTERNAL_API_KEY: 'dummy-internal-key',
+      TAVILY_API_KEY: 'dummy-tavily-key',
       JWT_SECRET: 'development-jwt-secret',
     };
-    
+
     if (devDefaults[key]) {
       return devDefaults[key];
     }
   }
-  
+
   if (required && !value) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
@@ -61,45 +63,68 @@ function getEnvVar(key: string, required: boolean = true): string {
 }
 
 export const config: AppConfig = {
-  environment: (getEnvVar('NODE_ENV', false) || 'development') as AppConfig['environment'],
-  
+  environment: (getEnvVar('NODE_ENV', false) ||
+    'development') as AppConfig['environment'],
+
   database: {
     url: getEnvVar('SUPABASE_URL'),
     serviceRoleKey: getEnvVar('SUPABASE_SERVICE_ROLE_KEY'),
     anonKey: getEnvVar('SUPABASE_ANON_KEY'),
   },
-  
+
   redis: {
     url: getEnvVar('UPSTASH_REDIS_URL'),
     token: getEnvVar('UPSTASH_REDIS_TOKEN'),
   },
-  
+
   api: {
     openaiApiKey: getEnvVar('OPENAI_API_KEY'),
     googlePlacesApiKey: getEnvVar('GOOGLE_PLACES_API_KEY'),
     googleMapsApiKey: getEnvVar('GOOGLE_MAPS_API_KEY'),
     internalApiKey: getEnvVar('INTERNAL_API_KEY'),
+    tavilyApiKey: getEnvVar('TAVILY_API_KEY'),
   },
-  
+
   frontend: {
-    baseUrl: getEnvVar('NEXT_PUBLIC_API_BASE_URL', false) || 'http://localhost:8888/.netlify/functions',
-    supabaseUrl: getEnvVar('NEXT_PUBLIC_SUPABASE_URL', false) || getEnvVar('SUPABASE_URL'),
-    supabaseAnonKey: getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY', false) || getEnvVar('SUPABASE_ANON_KEY'),
+    baseUrl:
+      getEnvVar('NEXT_PUBLIC_API_BASE_URL', false) ||
+      'http://localhost:8888/.netlify/functions',
+    supabaseUrl:
+      getEnvVar('NEXT_PUBLIC_SUPABASE_URL', false) || getEnvVar('SUPABASE_URL'),
+    supabaseAnonKey:
+      getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY', false) ||
+      getEnvVar('SUPABASE_ANON_KEY'),
   },
 };
 
 // Validate configuration on startup
 export function validateConfig() {
   const requiredKeys: (keyof AppConfig)[] = ['database', 'redis', 'api'];
-  
+
   for (const key of requiredKeys) {
     if (!config[key]) {
       throw new Error(`Missing configuration section: ${key}`);
     }
   }
-  
+
   console.log(`Configuration loaded for ${config.environment} environment`);
 }
 
 // Export auth config
 export * from './auth';
+
+// Research agent cost budget defaults (per request)
+export interface ResearchCostBudget {
+  /** Max Tavily API calls per research run (1 call = 1 search query batch) */
+  tavilyMaxCalls: number;
+  /** Max OpenAI tokens per research run (gpt-4o synthesis) */
+  openaiMaxTokens: number;
+  /** Max total research time in ms before timeout */
+  maxRunTimeMs: number;
+}
+
+export const RESEARCH_COST_BUDGET: ResearchCostBudget = {
+  tavilyMaxCalls: 5, // ~4 parallel queries + 1 retry headroom
+  openaiMaxTokens: 4000, // ~$0.06 per research run at gpt-4o rates
+  maxRunTimeMs: 30_000, // 30s hard timeout per agent run
+};
