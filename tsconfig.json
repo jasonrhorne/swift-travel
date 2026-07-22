@@ -21,20 +21,14 @@
     "paths": {
       "@/*": ["./src/*"],
       "@swift-travel/shared": ["./packages/shared/src"],
+      "@swift-travel/shared/*": ["./packages/shared/src/*"],
       "@swift-travel/database": ["./packages/database/src"],
-      "@swift-travel/agents": ["./packages/agents/src"]
+      "@swift-travel/database/*": ["./packages/database/src/*"],
+      "@swift-travel/agents": ["./packages/agents/src"],
+      "@swift-travel/agents/*": ["./packages/agents/src/*"]
     },
     "baseUrl": "."
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "dist", "build"]
 }

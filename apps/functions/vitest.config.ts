@@ -14,6 +14,7 @@ export default defineConfig({
       'src/__tests__/integration/vertical-slice.test.ts',
     ],
     env: {
+      NODE_ENV: 'development',
       SUPABASE_URL: 'https://test.supabase.co',
       SUPABASE_ANON_KEY: 'test-key',
       SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
