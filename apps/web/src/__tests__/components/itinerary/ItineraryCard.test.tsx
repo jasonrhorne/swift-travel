@@ -132,7 +132,8 @@ describe('ItineraryCard', () => {
     const dayButtons = screen
       .getAllByRole('button')
       .filter(
-        btn => btn.textContent?.includes(',') && btn.textContent?.length! < 30
+        btn =>
+          btn.textContent?.includes(',') && (btn.textContent?.length ?? 0) < 30
       );
     expect(dayButtons).toHaveLength(2);
   });
