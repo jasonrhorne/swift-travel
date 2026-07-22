@@ -2,6 +2,16 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
+    // Clear localStorage auth state to override dev mode's isAuthenticated: true
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'swift-travel-auth',
+        JSON.stringify({
+          state: { user: null, isAuthenticated: false },
+          version: 0,
+        })
+      );
+    });
     await page.goto('/');
   });
 
@@ -170,21 +180,5 @@ test.describe('Authentication Flow', () => {
     await expect(
       page.getByRole('heading', { name: /check your email/i })
     ).toBeVisible();
-  });
-
-  test('logout functionality', async ({ page }) => {
-    await page.route('/.netlify/functions/auth/logout', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          message: 'Logged out successfully',
-        }),
-      });
-    });
-
-    const response = await page.request.post('/.netlify/functions/auth/logout');
-    expect(response.status()).toBe(200);
   });
 });

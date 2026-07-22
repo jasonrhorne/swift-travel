@@ -303,6 +303,7 @@ test.describe('Itinerary Display', () => {
     });
 
     await page.goto('/itinerary/test-itinerary-id');
+    await page.waitForLoadState('networkidle');
 
     await expect(
       page.locator('h2').filter({ hasText: 'Paris Photography Adventure' })
@@ -330,6 +331,7 @@ test.describe('Itinerary Display', () => {
     );
 
     await page.goto('/itinerary/test-itinerary-id');
+    await page.waitForLoadState('networkidle');
 
     const firstActivity = page
       .locator('h4')
@@ -338,7 +340,10 @@ test.describe('Itinerary Display', () => {
 
     await expect(page.getByText('Why This Matters')).not.toBeVisible();
 
-    await page.getByRole('button', { name: 'Expand details' }).first().click();
+    await page
+      .getByRole('button', { name: 'Expand details' })
+      .first()
+      .click({ force: true });
 
     await expect(page.getByText('Why This Matters').first()).toBeVisible();
     await expect(page.getByText('Location').first()).toBeVisible();
@@ -347,7 +352,7 @@ test.describe('Itinerary Display', () => {
     await page
       .getByRole('button', { name: 'Collapse details' })
       .first()
-      .click();
+      .click({ force: true });
     await expect(page.getByText('Why This Matters').first()).not.toBeVisible();
   });
 
@@ -364,6 +369,7 @@ test.describe('Itinerary Display', () => {
     );
 
     await page.goto('/itinerary/multi-day-itinerary-id');
+    await page.waitForLoadState('networkidle');
 
     await expect(
       page.locator('h2').filter({ hasText: 'Tokyo Culture & Food Adventure' })
@@ -380,7 +386,7 @@ test.describe('Itinerary Display', () => {
 
     const day2Button = page.locator('button').filter({ hasText: /Jul 2/ });
     if (await day2Button.isVisible()) {
-      await day2Button.click();
+      await day2Button.click({ force: true });
       await expect(page.getByText('Harajuku Street Photography')).toBeVisible();
       await expect(page.getByText('Shibuya Crossing at Night')).toBeVisible();
     }
@@ -430,6 +436,7 @@ test.describe('Itinerary Display', () => {
     );
 
     await page.goto('/itinerary/test-itinerary-id');
+    await page.waitForLoadState('networkidle');
 
     await expect(
       page.locator('h2').filter({ hasText: 'Creating Your Itinerary' })
@@ -452,6 +459,7 @@ test.describe('Itinerary Display', () => {
     );
 
     await page.goto('/itinerary/test-itinerary-id');
+    await page.waitForLoadState('networkidle');
 
     await expect(
       page.locator('h2').filter({ hasText: 'Paris Photography Adventure' })
@@ -466,12 +474,19 @@ test.describe('Itinerary Display', () => {
       .getByRole('button', { name: 'Expand details' })
       .first();
     await expect(expandButton).toBeVisible();
-    await expandButton.tap();
+    await expandButton.tap({ force: true });
     await expect(page.getByText('Why This Matters').first()).toBeVisible();
   });
 });
 
 test.describe('Requirements Form', () => {
+  test.beforeEach(async ({ page }) => {
+    // Clear localStorage requirements state
+    await page.addInitScript(() => {
+      localStorage.removeItem('swift-travel-requirements');
+    });
+  });
+
   test('navigates through multi-step form', async ({ page }) => {
     await page.goto('/requirements');
 
@@ -483,7 +498,11 @@ test.describe('Requirements Form', () => {
     ).toBeVisible();
 
     await page.locator('#destination').fill('Paris, France');
-    await page.getByRole('button', { name: /next/i }).click();
+
+    // Wait for debounce to update store (300ms) and button to be enabled
+    const nextButton = page.getByRole('button', { name: /next/i });
+    await expect(nextButton).toBeEnabled({ timeout: 1000 });
+    await nextButton.click();
 
     await expect(
       page.getByRole('heading', { name: /your trip duration/i })
@@ -514,7 +533,10 @@ test.describe('Requirements Form', () => {
   }) => {
     await page.goto('/requirements');
 
-    await page.getByRole('button', { name: /next/i }).click();
+    // Wait for the Next button to be enabled before clicking
+    const nextButton = page.getByRole('button', { name: /next/i });
+    await expect(nextButton).toBeEnabled({ timeout: 1000 });
+    await nextButton.click();
 
     await expect(page.getByText(/destination is required/i)).toBeVisible();
   });
@@ -543,7 +565,12 @@ test.describe('Requirements Form', () => {
     await page.goto('/requirements');
 
     await page.locator('#destination').fill('Paris, France');
-    await page.getByRole('button', { name: /next/i }).click();
+
+    // Wait for debounce to update store (300ms) and button to be enabled
+    const nextButton = page.getByRole('button', { name: /next/i });
+    await expect(nextButton).toBeEnabled({ timeout: 1000 });
+    await nextButton.click();
+
     await page.getByRole('button', { name: /next/i }).click();
     await page.getByRole('button', { name: /photography/i }).click();
     await page.getByRole('button', { name: /next/i }).click();

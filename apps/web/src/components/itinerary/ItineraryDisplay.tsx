@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Itinerary } from '@swift-travel/shared';
 import { getItinerary } from '@/lib/api/itinerary';
@@ -14,46 +14,58 @@ interface ItineraryDisplayProps {
   itineraryId: string;
 }
 
-export default function ItineraryDisplay({ itineraryId }: ItineraryDisplayProps) {
+export default function ItineraryDisplay({
+  itineraryId,
+}: ItineraryDisplayProps) {
   const router = useRouter();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   // Performance monitoring
-  const { trackItineraryLoad, trackProgressComplete } = useItineraryMetrics(itineraryId);
+  const { trackItineraryLoad: rawTrackItineraryLoad, trackProgressComplete } =
+    useItineraryMetrics(itineraryId);
+
+  // Use ref to hold latest trackItineraryLoad to prevent infinite re-render loop
+  const trackItineraryLoadRef = useRef(rawTrackItineraryLoad);
+  trackItineraryLoadRef.current = rawTrackItineraryLoad;
 
   useEffect(() => {
     const fetchItinerary = async () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const response = await getItinerary(itineraryId);
-        
+
         if (response.success && response.data) {
           setItinerary(response.data);
-          
+
           // Track successful load
-          trackItineraryLoad(true, {
+          trackItineraryLoadRef.current(true, {
             status: response.data.status,
             activitiesCount: response.data.activities.length,
-            processingTimeSeconds: response.data.metadata?.processingTimeSeconds
+            processingTimeSeconds:
+              response.data.metadata?.processingTimeSeconds,
           });
-          
+
           // Check if still processing
-          if (response.data.status === 'draft' || response.data.status === 'validated') {
+          if (
+            response.data.status === 'draft' ||
+            response.data.status === 'validated'
+          ) {
             setIsProcessing(true);
           }
         } else {
-          const errorMsg = response.error?.message || 'Failed to load itinerary';
+          const errorMsg =
+            response.error?.message || 'Failed to load itinerary';
           setError(errorMsg);
-          
+
           // Track failed load
-          trackItineraryLoad(false, {
+          trackItineraryLoadRef.current(false, {
             error: errorMsg,
-            errorCode: response.error?.code
+            errorCode: response.error?.code,
           });
         }
       } catch (err) {
@@ -67,19 +79,19 @@ export default function ItineraryDisplay({ itineraryId }: ItineraryDisplayProps)
     if (itineraryId) {
       fetchItinerary();
     }
-  }, [itineraryId, trackItineraryLoad]);
+  }, [itineraryId]);
 
   const handleProgressComplete = (completedItinerary: Itinerary) => {
     setItinerary(completedItinerary);
     setIsProcessing(false);
-    
+
     // Track progress completion
     trackProgressComplete(
       completedItinerary.metadata?.processingTimeSeconds || 0,
       {
         activitiesCount: completedItinerary.activities.length,
         qualityScore: completedItinerary.metadata?.qualityScore,
-        finalStatus: completedItinerary.status
+        finalStatus: completedItinerary.status,
       }
     );
   };
@@ -137,7 +149,7 @@ export default function ItineraryDisplay({ itineraryId }: ItineraryDisplayProps)
         <ProgressTracker
           requestId={itineraryId}
           onComplete={handleProgressComplete}
-          onError={(error) => setError(error)}
+          onError={error => setError(error)}
         />
       )}
 
@@ -153,7 +165,8 @@ export default function ItineraryDisplay({ itineraryId }: ItineraryDisplayProps)
             Itinerary In Progress
           </h3>
           <p className="text-yellow-700 mb-4">
-            Your itinerary is being generated. Please wait while our AI agents create your personalized recommendations.
+            Your itinerary is being generated. Please wait while our AI agents
+            create your personalized recommendations.
           </p>
           <button
             onClick={() => setIsProcessing(true)}
