@@ -1,19 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AgentFn } from '@swift-travel/agents';
 
+// Mock @supabase/supabase-js to avoid WebSocket initialization
+// which requires Node.js 22+ but CI runs Node.js 20
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn().mockResolvedValue({ data: [], error: null }),
+    })),
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    },
+  })),
+}));
+
 // ---------------------------------------------------------------------------
 // Mocks — DB write only
 // ---------------------------------------------------------------------------
 
 const mockInsertBatch = vi.fn();
 
-vi.mock('@swift-travel/database', async importOriginal => {
-  const orig = await importOriginal<typeof import('@swift-travel/database')>();
-  return {
-    ...orig,
-    researchEntries: { insertBatch: mockInsertBatch },
-  };
-});
+vi.mock('@swift-travel/database', () => ({
+  researchEntries: { insertBatch: mockInsertBatch },
+}));
 
 vi.mock('@swift-travel/shared', async importOriginal => {
   const orig = await importOriginal<typeof import('@swift-travel/shared')>();
