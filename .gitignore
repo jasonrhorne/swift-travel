@@ -118,6 +118,7 @@ logs
 dist/
 build/
 out/
+*.tsbuildinfo
 
 # Temporary files
 tmp/
