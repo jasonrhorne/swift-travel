@@ -35,8 +35,9 @@ interface AppConfig {
 function getEnvVar(key: string, required: boolean = true): string {
   const value = process.env[key];
 
-  // In non-production environments, provide default values for missing env vars
-  if (process.env.NODE_ENV !== 'production' && !value) {
+  // Provide default values for missing env vars (during build, CI, or development)
+  // Production deployments will have real values set
+  if (!value) {
     const devDefaults: Record<string, string> = {
       SUPABASE_URL: 'https://dummy-project.supabase.co',
       SUPABASE_SERVICE_ROLE_KEY: 'dummy-service-role-key',

@@ -18,6 +18,7 @@ import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
 import {
   getItineraryRequest,
+  saveItineraryRequest,
   completeAgentProcessing,
   handleAgentFailure,
 } from '../itineraries/process-request';
@@ -58,12 +59,11 @@ export async function handler(event: any) {
   let requestId: string = '';
 
   try {
-    // Validate authentication
-    requireInternalAuth(event);
-
     if (event.httpMethod !== 'POST') {
       return createErrorResponse(405, 'Method not allowed', {});
     }
+
+    requireInternalAuth(event);
 
     const body = JSON.parse(event.body || '{}') as ResponseRequestBody;
     requestId = body.requestId;
@@ -98,6 +98,10 @@ export async function handler(event: any) {
 
     // Store in Supabase database
     await storeItinerary(responseResult.itinerary);
+
+    request.itineraryId = responseResult.itinerary.id;
+    request.updatedAt = new Date();
+    await saveItineraryRequest(request);
 
     // Complete this agent's processing (final step)
     await completeAgentProcessing(requestId, 'response', {
@@ -223,7 +227,7 @@ function calculateQualityScore(
 ): number {
   // Base quality from validation and interest alignment
   const baseQuality = validationConfidence * 0.4 + interestAlignment * 0.4;
-  
+
   // Add child-friendliness factor if applicable
   const familyBonus = childFriendliness ? childFriendliness * 0.1 : 0;
 
@@ -233,7 +237,8 @@ function calculateQualityScore(
   // Processing efficiency bonus
   const efficiencyBonus = processingTime < 15000 ? 0.1 : 0;
 
-  const finalScore = baseQuality + familyBonus + 0.1 + efficiencyBonus - timePenalty;
+  const finalScore =
+    baseQuality + familyBonus + 0.1 + efficiencyBonus - timePenalty;
 
   return Math.min(Math.max(finalScore, 0), 1);
 }

@@ -9,13 +9,6 @@ out/
 
 # Generated files
 *.d.ts
-*.js
-!vitest.config.js
-!next.config.js
-!tailwind.config.js
-!postcss.config.js
-apps/web/tailwind.config.js
-apps/web/postcss.config.js
 
 # Test coverage
 coverage/
@@ -41,3 +34,9 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+netlify-functions/
+**/dist/
+**/.next/
+
+# Test directories (excluded from root tsconfig, can't be linted)
+**/__tests__/

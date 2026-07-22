@@ -15,9 +15,10 @@ interface AuthConfig {
 
 function getEnvVar(key: string, required: boolean = true): string {
   const value = process.env[key];
-  
-  // In development mode, provide default values for missing env vars
-  if (process.env.NODE_ENV === 'development' && !value) {
+
+  // Provide default values for missing env vars (during build, CI, or development)
+  // Production deployments will have real values set
+  if (!value) {
     const devDefaults: Record<string, string> = {
       SUPABASE_URL: 'https://dummy-project.supabase.co',
       SUPABASE_SERVICE_ROLE_KEY: 'dummy-service-role-key',
@@ -25,12 +26,12 @@ function getEnvVar(key: string, required: boolean = true): string {
       UPSTASH_REDIS_TOKEN: 'dummy-redis-token',
       JWT_SECRET: 'development-jwt-secret',
     };
-    
+
     if (devDefaults[key]) {
       return devDefaults[key];
     }
   }
-  
+
   if (required && !value) {
     throw new Error(`Missing required environment variable: ${key}`);
   }

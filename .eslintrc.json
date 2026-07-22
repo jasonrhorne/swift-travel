@@ -36,7 +36,10 @@
       },
       "rules": {
         "react/no-unescaped-entities": "off",
-        "@typescript-eslint/no-unused-vars": "error"
+        "@typescript-eslint/no-unused-vars": "error",
+        "@typescript-eslint/no-explicit-any": "warn",
+        "@typescript-eslint/no-var-requires": "warn",
+        "@next/next/no-html-link-for-pages": "off"
       }
     },
     {
@@ -55,6 +58,15 @@
       "env": {
         "node": true,
         "es2022": true
+      }
+    },
+    {
+      "files": ["**/*.test.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": null
+      },
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn"
       }
     }
   ]

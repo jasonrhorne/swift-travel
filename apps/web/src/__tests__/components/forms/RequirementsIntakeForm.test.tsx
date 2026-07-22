@@ -64,7 +64,7 @@ describe('RequirementsIntakeForm', () => {
     isSubmitting: false,
     submitError: null,
     errors: {},
-    
+
     // Form data
     destination: '',
     duration: 'long-weekend',
@@ -74,7 +74,7 @@ describe('RequirementsIntakeForm', () => {
     groupSize: 2,
     specialRequests: [],
     accessibilityNeeds: [],
-    
+
     // Actions
     nextStep: vi.fn(),
     previousStep: vi.fn(),
@@ -100,14 +100,16 @@ describe('RequirementsIntakeForm', () => {
 
   it('should render the form with correct title', () => {
     render(<RequirementsIntakeForm />);
-    
+
     expect(screen.getByText('Plan Your Perfect Trip')).toBeInTheDocument();
-    expect(screen.getByText(/Tell us about your travel preferences/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Tell us about your travel preferences/)
+    ).toBeInTheDocument();
   });
 
   it('should render the current step component', () => {
     render(<RequirementsIntakeForm />);
-    
+
     expect(screen.getByTestId('destination-step')).toBeInTheDocument();
     expect(screen.queryByTestId('dates-step')).not.toBeInTheDocument();
   });
@@ -119,8 +121,8 @@ describe('RequirementsIntakeForm', () => {
     });
 
     render(<RequirementsIntakeForm />);
-    
-    expect(screen.getByTestId('dates-step')).toBeInTheDocument();
+
+    expect(screen.getByTestId('duration-step')).toBeInTheDocument();
     expect(screen.queryByTestId('destination-step')).not.toBeInTheDocument();
   });
 
@@ -131,7 +133,7 @@ describe('RequirementsIntakeForm', () => {
     });
 
     render(<RequirementsIntakeForm />);
-    
+
     expect(screen.getByText('Submission Error')).toBeInTheDocument();
     expect(screen.getByText('Test error message')).toBeInTheDocument();
   });
@@ -146,28 +148,32 @@ describe('RequirementsIntakeForm', () => {
     });
 
     render(<RequirementsIntakeForm />);
-    
-    expect(screen.getByText('Please fix the following errors:')).toBeInTheDocument();
+
+    expect(
+      screen.getByText('Please fix the following errors:')
+    ).toBeInTheDocument();
     expect(screen.getByText('Destination is required')).toBeInTheDocument();
     expect(screen.getByText('Please select a persona')).toBeInTheDocument();
   });
 
   it('should call progress navigation functions', () => {
     render(<RequirementsIntakeForm />);
-    
+
     const progressElement = screen.getByTestId('form-progress');
     const goToStepButton = progressElement.querySelector('button');
-    
+
     fireEvent.click(goToStepButton!);
-    
+
     expect(mockStore.clearErrors).toHaveBeenCalled();
     expect(mockStore.goToStep).toHaveBeenCalledWith(1);
   });
 
   describe('Form submission', () => {
     it('should handle successful form submission', async () => {
-      const { submitItineraryRequirements } = await import('../../../lib/api/itinerary');
-      
+      const { submitItineraryRequirements } = await import(
+        '../../../lib/api/itinerary'
+      );
+
       vi.mocked(submitItineraryRequirements).mockResolvedValue({
         success: true,
         data: {
@@ -191,7 +197,7 @@ describe('RequirementsIntakeForm', () => {
       });
 
       render(<RequirementsIntakeForm />);
-      
+
       const submitButton = screen.getByText('Submit');
       fireEvent.click(submitButton);
 
@@ -211,7 +217,7 @@ describe('RequirementsIntakeForm', () => {
       });
 
       render(<RequirementsIntakeForm />);
-      
+
       const submitButton = screen.getByText('Submit');
       fireEvent.click(submitButton);
 
@@ -221,8 +227,10 @@ describe('RequirementsIntakeForm', () => {
     });
 
     it('should handle API submission errors', async () => {
-      const { submitItineraryRequirements } = await import('../../../lib/api/itinerary');
-      
+      const { submitItineraryRequirements } = await import(
+        '../../../lib/api/itinerary'
+      );
+
       vi.mocked(submitItineraryRequirements).mockResolvedValue({
         success: false,
         error: {
@@ -246,7 +254,7 @@ describe('RequirementsIntakeForm', () => {
       });
 
       render(<RequirementsIntakeForm />);
-      
+
       const submitButton = screen.getByText('Submit');
       fireEvent.click(submitButton);
 
@@ -264,21 +272,21 @@ describe('RequirementsIntakeForm', () => {
       });
 
       render(<RequirementsIntakeForm />);
-      
+
       const errorElement = screen.getByText('Test error');
       expect(errorElement).toBeInTheDocument();
-      
+
       // Check that error is properly announced
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
     it('should support keyboard navigation', () => {
       render(<RequirementsIntakeForm />);
-      
+
       // Form should be keyboard accessible
       const form = screen.getByTestId('form-navigation');
       expect(form).toBeInTheDocument();
-      
+
       // Navigation buttons should be focusable
       const nextButton = screen.getByText('Next');
       expect(nextButton).toBeInTheDocument();
@@ -290,9 +298,11 @@ describe('RequirementsIntakeForm', () => {
   describe('Responsive design', () => {
     it('should render mobile-friendly layout', () => {
       render(<RequirementsIntakeForm />);
-      
+
       // Check for responsive classes (this is a basic test)
-      const container = screen.getByText('Plan Your Perfect Trip').closest('.mx-auto');
+      const container = screen
+        .getByText('Plan Your Perfect Trip')
+        .closest('.mx-auto');
       expect(container).toHaveClass('max-w-2xl');
     });
   });
@@ -300,8 +310,12 @@ describe('RequirementsIntakeForm', () => {
   describe('Value proposition messaging', () => {
     it('should display value proposition footer', () => {
       render(<RequirementsIntakeForm />);
-      
-      expect(screen.getByText('Powered by AI • Personalized for you • Ready in minutes')).toBeInTheDocument();
+
+      expect(
+        screen.getByText(
+          'Powered by AI • Personalized for you • Ready in minutes'
+        )
+      ).toBeInTheDocument();
     });
   });
 });

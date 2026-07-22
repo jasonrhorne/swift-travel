@@ -14,7 +14,7 @@ describe('Itinerary API', () => {
     travelerComposition: { adults: 2, children: 0, childrenAges: [] },
     groupSize: 2,
     specialRequests: ['Anniversary dinner'],
-    accessibilityNeeds: ['Wheelchair accessible venues']
+    accessibilityNeeds: ['Wheelchair accessible venues'],
   };
 
   beforeEach(() => {
@@ -40,9 +40,9 @@ describe('Itinerary API', () => {
             id: 'test-request-id',
             userId: 'test-user-id',
             requirements: mockUserRequirements,
-            status: 'initiated'
-          }
-        }
+            status: 'initiated',
+          },
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -50,17 +50,18 @@ describe('Itinerary API', () => {
         json: async () => mockResponse,
       });
 
-      const result = await itineraryAPI.submitRequirements(mockUserRequirements);
+      const result =
+        await itineraryAPI.submitRequirements(mockUserRequirements);
 
       expect(result.success).toBe(true);
       expect(result.data?.requestId).toBe('test-request-id');
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/itineraries/process-request',
+        'http://localhost:3000/itineraries-process-request',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
           body: JSON.stringify({ requirements: mockUserRequirements }),
         })
@@ -71,7 +72,7 @@ describe('Itinerary API', () => {
       const mockErrorResponse = {
         code: 'VALIDATION_ERROR',
         message: 'Invalid destination',
-        details: { field: 'destination' }
+        details: { field: 'destination' },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -81,7 +82,8 @@ describe('Itinerary API', () => {
         json: async () => mockErrorResponse,
       });
 
-      const result = await itineraryAPI.submitRequirements(mockUserRequirements);
+      const result =
+        await itineraryAPI.submitRequirements(mockUserRequirements);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('VALIDATION_ERROR');
@@ -92,11 +94,14 @@ describe('Itinerary API', () => {
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      const result = await itineraryAPI.submitRequirements(mockUserRequirements);
+      const result =
+        await itineraryAPI.submitRequirements(mockUserRequirements);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('NETWORK_ERROR');
-      expect(result.error?.message).toContain('Failed to connect to the server');
+      expect(result.error?.message).toContain(
+        'Failed to connect to the server'
+      );
     });
 
     it('should handle malformed JSON responses', async () => {
@@ -104,10 +109,13 @@ describe('Itinerary API', () => {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
-        json: async () => { throw new Error('Invalid JSON'); },
+        json: async () => {
+          throw new Error('Invalid JSON');
+        },
       });
 
-      const result = await itineraryAPI.submitRequirements(mockUserRequirements);
+      const result =
+        await itineraryAPI.submitRequirements(mockUserRequirements);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('API_ERROR');
@@ -123,8 +131,8 @@ describe('Itinerary API', () => {
           status: 'research-in-progress',
           progress: 25,
           currentAgent: 'research',
-          estimatedTimeRemaining: 15
-        }
+          estimatedTimeRemaining: 15,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -138,11 +146,11 @@ describe('Itinerary API', () => {
       expect(result.data?.status).toBe('research-in-progress');
       expect(result.data?.progress).toBe(25);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/itineraries/status/test-request-id',
+        'http://localhost:3000/itineraries-status?requestId=test-request-id',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -155,7 +163,7 @@ describe('Itinerary API', () => {
         statusText: 'Not Found',
         json: async () => ({
           code: 'REQUEST_NOT_FOUND',
-          message: 'Request not found'
+          message: 'Request not found',
         }),
       });
 
@@ -183,7 +191,7 @@ describe('Itinerary API', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -196,7 +204,7 @@ describe('Itinerary API', () => {
         statusText: 'Bad Request',
         json: async () => ({
           code: 'CANCEL_FAILED',
-          message: 'Cannot cancel completed request'
+          message: 'Cannot cancel completed request',
         }),
       });
 
@@ -217,10 +225,10 @@ describe('Itinerary API', () => {
       await itineraryAPI.submitRequirements(mockUserRequirements);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/itineraries/process-request',
+        'http://localhost:3000/itineraries-process-request',
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -244,10 +252,10 @@ describe('Itinerary API', () => {
       await itineraryAPI.submitRequirements(mockUserRequirements);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/itineraries/process-request',
+        'http://localhost:3000/itineraries-process-request',
         expect.objectContaining({
           headers: expect.not.objectContaining({
-            'Authorization': expect.any(String),
+            Authorization: expect.any(String),
           }),
         })
       );
@@ -256,11 +264,9 @@ describe('Itinerary API', () => {
 
   describe('ItineraryAPIError', () => {
     it('should create error with correct properties', () => {
-      const error = new ItineraryAPIError(
-        'TEST_CODE',
-        'Test message',
-        { extra: 'data' }
-      );
+      const error = new ItineraryAPIError('TEST_CODE', 'Test message', {
+        extra: 'data',
+      });
 
       expect(error.name).toBe('ItineraryAPIError');
       expect(error.code).toBe('TEST_CODE');

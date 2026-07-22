@@ -1,132 +1,53 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
+import { performanceMonitoring } from '@/lib/monitoring';
 
-// Mock the monitoring module
 vi.mock('@/lib/monitoring', () => ({
-  performanceMonitoring: {
-    trackEvent: vi.fn(),
-    trackError: vi.fn(),
-    trackTiming: vi.fn()
-  }
+  performanceMonitoring: { trackEvent: vi.fn() },
 }));
 
+const options = { eventName: 'itinerary_display', category: 'itinerary' };
+
 describe('usePerformanceMetrics', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(() => vi.clearAllMocks());
+
+  it('exposes tracking helpers', () => {
+    const { result } = renderHook(() => usePerformanceMetrics(options));
+    expect(result.current.trackSuccess).toBeTypeOf('function');
+    expect(result.current.trackError).toBeTypeOf('function');
+    expect(result.current.trackCustom).toBeTypeOf('function');
   });
 
-  it('provides trackItineraryMetrics function', () => {
-    const { result } = renderHook(() => usePerformanceMetrics());
-    
-    expect(result.current.trackItineraryMetrics).toBeDefined();
-    expect(typeof result.current.trackItineraryMetrics).toBe('function');
-  });
-
-  it('provides trackError function', () => {
-    const { result } = renderHook(() => usePerformanceMetrics());
-    
-    expect(result.current.trackError).toBeDefined();
-    expect(typeof result.current.trackError).toBe('function');
-  });
-
-  it('provides trackSuccess function', () => {
-    const { result } = renderHook(() => usePerformanceMetrics());
-    
-    expect(result.current.trackSuccess).toBeDefined();
-    expect(typeof result.current.trackSuccess).toBe('function');
-  });
-
-  it('tracks itinerary metrics correctly', () => {
-    const { performanceMonitoring } = require('@/lib/monitoring');
-    const { result } = renderHook(() => usePerformanceMetrics());
-
+  it('tracks success once with metadata', () => {
+    const { result } = renderHook(() => usePerformanceMetrics(options));
     act(() => {
-      result.current.trackItineraryMetrics('test-itinerary', {
-        status: 'finalized',
-        activityCount: 5,
-        processingTime: 25
-      });
+      result.current.trackSuccess({ itineraryId: 'test-itinerary' });
+      result.current.trackSuccess();
     });
-
-    expect(performanceMonitoring.trackEvent).toHaveBeenCalledWith('itinerary_metrics', {
-      category: 'itinerary_generation',
-      itineraryId: 'test-itinerary',
-      status: 'finalized',
-      activityCount: 5,
-      processingTime: 25
-    });
+    expect(performanceMonitoring.trackEvent).toHaveBeenCalledTimes(1);
+    expect(performanceMonitoring.trackEvent).toHaveBeenCalledWith(
+      'itinerary_display',
+      expect.objectContaining({
+        category: 'itinerary',
+        status: 'success',
+        itineraryId: 'test-itinerary',
+      })
+    );
   });
 
   it('tracks errors with context', () => {
-    const { performanceMonitoring } = require('@/lib/monitoring');
-    const { result } = renderHook(() => usePerformanceMetrics());
-
-    act(() => {
-      result.current.trackError('validation_failed', {
-        itineraryId: 'test-itinerary',
-        agent: 'validation',
-        error: 'Location not found'
-      });
-    });
-
-    expect(performanceMonitoring.trackError).toHaveBeenCalledWith('validation_failed', {
-      category: 'itinerary_generation',
-      itineraryId: 'test-itinerary',
-      agent: 'validation',
-      error: 'Location not found'
-    });
-  });
-
-  it('tracks success events with metadata', () => {
-    const { performanceMonitoring } = require('@/lib/monitoring');
-    const { result } = renderHook(() => usePerformanceMetrics());
-
-    act(() => {
-      result.current.trackSuccess('itinerary_completed', {
-        itineraryId: 'test-itinerary',
-        duration: 23,
-        qualityScore: 0.95
-      });
-    });
-
-    expect(performanceMonitoring.trackEvent).toHaveBeenCalledWith('itinerary_completed', {
-      category: 'itinerary_generation',
-      success: true,
-      itineraryId: 'test-itinerary',
-      duration: 23,
-      qualityScore: 0.95
-    });
-  });
-
-  it('handles missing optional parameters gracefully', () => {
-    const { performanceMonitoring } = require('@/lib/monitoring');
-    const { result } = renderHook(() => usePerformanceMetrics());
-
-    act(() => {
-      result.current.trackItineraryMetrics('test-itinerary');
-    });
-
-    expect(performanceMonitoring.trackEvent).toHaveBeenCalledWith('itinerary_metrics', {
-      category: 'itinerary_generation',
-      itineraryId: 'test-itinerary'
-    });
-  });
-
-  it('tracks timing events correctly', () => {
-    const { performanceMonitoring } = require('@/lib/monitoring');
-    const { result } = renderHook(() => usePerformanceMetrics());
-
-    act(() => {
-      result.current.trackItineraryMetrics('test-itinerary', {
-        status: 'finalized',
-        processingTime: 25
-      });
-    });
-
-    expect(performanceMonitoring.trackTiming).toHaveBeenCalledWith('itinerary_generation_time', 25, {
-      itineraryId: 'test-itinerary',
-      status: 'finalized'
-    });
+    const { result } = renderHook(() => usePerformanceMetrics(options));
+    act(() =>
+      result.current.trackError('Load failed', { requestId: 'request-1' })
+    );
+    expect(performanceMonitoring.trackEvent).toHaveBeenCalledWith(
+      'itinerary_display',
+      expect.objectContaining({
+        status: 'error',
+        error: 'Load failed',
+        requestId: 'request-1',
+      })
+    );
   });
 });

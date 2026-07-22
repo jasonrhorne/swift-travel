@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { HandlerEvent, HandlerContext, HandlerResponse } from '@netlify/functions';
+import type {
+  HandlerEvent,
+  HandlerContext,
+  HandlerResponse,
+} from '@netlify/functions';
 
 // Mock all dependencies with factory functions
 vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({})
+  createClient: () => ({}),
 }));
 
 vi.mock('ioredis', () => ({
@@ -11,15 +15,15 @@ vi.mock('ioredis', () => ({
     get = vi.fn();
     setex = vi.fn();
     del = vi.fn();
-  }
+  },
 }));
 
 vi.mock('pino', () => ({
   default: () => ({
     info: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn()
-  })
+    error: vi.fn(),
+  }),
 }));
 
 vi.mock('@swift-travel/shared/config/auth', () => ({
@@ -31,14 +35,14 @@ vi.mock('@swift-travel/shared/config/auth', () => ({
     tokenExpirationMinutes: 15,
     rateLimitPerWindow: 5,
     rateLimitWindowMinutes: 15,
-    jwtSecret: 'test-secret'
-  }
+    jwtSecret: 'test-secret',
+  },
 }));
 
 vi.mock('../../shared/email-service', () => ({
   emailService: {
-    sendMagicLinkEmail: vi.fn()
-  }
+    sendMagicLinkEmail: vi.fn(),
+  },
 }));
 
 // Import the handler after mocks are set up
@@ -57,7 +61,7 @@ function createMockEvent(overrides: Partial<HandlerEvent> = {}): HandlerEvent {
     queryStringParameters: {},
     multiValueQueryStringParameters: {},
     isBase64Encoded: false,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -76,7 +80,7 @@ function createMockContext(): HandlerContext {
     getRemainingTimeInMillis: () => 5000,
     done: () => {},
     fail: () => {},
-    succeed: () => {}
+    succeed: () => {},
   };
 }
 
@@ -92,30 +96,30 @@ describe('Magic Link Authentication', () => {
   describe('POST /auth/magic-link', () => {
     it('should reject invalid email format', async () => {
       const event = createMockEvent({
-        body: JSON.stringify({ email: 'invalid-email' })
+        body: JSON.stringify({ email: 'invalid-email' }),
       });
       const context = createMockContext();
 
-      const response = await handler(event, context) as HandlerResponse;
+      const response = (await handler(event, context)) as HandlerResponse;
 
       expect(response!.statusCode).toBe(400);
       expect(JSON.parse(response!.body!)).toMatchObject({
-        error: 'Invalid request data',
-        message: expect.stringContaining('Invalid email address')
+        error: 'INVALID_DATA',
+        message: expect.stringContaining('Invalid email address'),
       });
     });
 
     it('should reject non-POST requests', async () => {
       const event = createMockEvent({
-        httpMethod: 'GET'
+        httpMethod: 'GET',
       });
       const context = createMockContext();
 
-      const response = await handler(event, context) as HandlerResponse;
+      const response = (await handler(event, context)) as HandlerResponse;
 
       expect(response!.statusCode).toBe(405);
       expect(JSON.parse(response!.body!)).toMatchObject({
-        error: 'Method not allowed'
+        error: 'METHOD_NOT_ALLOWED',
       });
     });
 
@@ -123,11 +127,11 @@ describe('Magic Link Authentication', () => {
       const event = createMockEvent();
       const context = createMockContext();
 
-      const response = await handler(event, context) as HandlerResponse;
+      const response = (await handler(event, context)) as HandlerResponse;
 
       expect(response!.statusCode).toBe(400);
       expect(JSON.parse(response!.body!)).toMatchObject({
-        error: 'Missing request body'
+        error: 'MISSING_BODY',
       });
     });
   });
