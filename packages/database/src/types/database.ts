@@ -162,6 +162,74 @@ export interface Database {
           created_at?: string;
         };
       };
+      research_entries: {
+        Row: {
+          id: string;
+          request_id: string | null;
+          destination: string;
+          interest: string;
+          name: string;
+          entry_type: string;
+          description: string;
+          why_recommended: string;
+          estimated_cost: Json | null;
+          coordinates: Json | null;
+          address: string | null;
+          hours: Json | null;
+          sources: Json;
+          google_place_id: string | null;
+          validation_status: string;
+          validation_details: Json;
+          researched_at: string;
+          validated_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          request_id?: string | null;
+          destination: string;
+          interest: string;
+          name: string;
+          entry_type: string;
+          description: string;
+          why_recommended: string;
+          estimated_cost?: Json | null;
+          coordinates?: Json | null;
+          address?: string | null;
+          hours?: Json | null;
+          sources?: Json;
+          google_place_id?: string | null;
+          validation_status?: string;
+          validation_details?: Json;
+          researched_at?: string;
+          validated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          request_id?: string | null;
+          destination?: string;
+          interest?: string;
+          name?: string;
+          entry_type?: string;
+          description?: string;
+          why_recommended?: string;
+          estimated_cost?: Json | null;
+          coordinates?: Json | null;
+          address?: string | null;
+          hours?: Json | null;
+          sources?: Json;
+          google_place_id?: string | null;
+          validation_status?: string;
+          validation_details?: Json;
+          researched_at?: string;
+          validated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -178,4 +246,10 @@ export interface Database {
   };
 }
 
-type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];

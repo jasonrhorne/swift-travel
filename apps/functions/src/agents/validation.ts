@@ -2,18 +2,14 @@
 // Based on story 1.3 requirements for validation agent implementation
 
 import { Redis } from '@upstash/redis';
-import { 
-  config,
-  Activity,
-  ValidationResult
-} from '@swift-travel/shared';
+import { config, Activity, ValidationResult } from '@swift-travel/shared';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
-import { 
-  getItineraryRequest, 
+import {
+  getItineraryRequest,
   completeAgentProcessing,
-  handleAgentFailure 
+  handleAgentFailure,
 } from '../itineraries/process-request';
 import { getCurationResults } from './curation';
 
@@ -67,18 +63,17 @@ interface ValidationResults {
 export async function handler(event: any) {
   const startTime = Date.now();
   let requestId: string = '';
-  
+
   try {
-    // Validate authentication
-    requireInternalAuth(event);
-    
     if (event.httpMethod !== 'POST') {
       return createErrorResponse(405, 'Method not allowed', {});
     }
 
+    requireInternalAuth(event);
+
     const body = JSON.parse(event.body || '{}') as ValidationRequestBody;
     requestId = body.requestId;
-    
+
     if (!requestId) {
       return createErrorResponse(400, 'Missing requestId', {});
     }
@@ -97,24 +92,26 @@ export async function handler(event: any) {
     }
 
     // Perform validation
-    const validationResults = await performActivityValidation(curationResults.activities);
-    
+    const validationResults = await performActivityValidation(
+      curationResults.activities
+    );
+
     // Store validation results in Redis
     await saveValidationResults(requestId, validationResults);
-    
+
     // Complete this agent's processing and trigger next agent
     await completeAgentProcessing(requestId, 'validation', {
       validationCompleted: true,
       activitiesValidated: validationResults.validationSummary.totalActivities,
       verifiedCount: validationResults.validationSummary.verifiedCount,
       averageConfidence: validationResults.validationSummary.averageConfidence,
-      apiCallsMade: validationResults.apiUsage.placesApiCalls
+      apiCallsMade: validationResults.apiUsage.placesApiCalls,
     });
 
     const duration = Date.now() - startTime;
-    agentLogger.agentComplete('validation', requestId, duration, { 
+    agentLogger.agentComplete('validation', requestId, duration, {
       verifiedActivities: validationResults.validationSummary.verifiedCount,
-      averageConfidence: validationResults.validationSummary.averageConfidence
+      averageConfidence: validationResults.validationSummary.averageConfidence,
     });
 
     return createSuccessResponse({
@@ -123,45 +120,51 @@ export async function handler(event: any) {
       verifiedActivities: validationResults.validationSummary.verifiedCount,
       totalActivities: validationResults.validationSummary.totalActivities,
       averageConfidence: validationResults.validationSummary.averageConfidence,
-      processingTime: duration
+      processingTime: duration,
     });
-
   } catch (error) {
     agentLogger.agentError('validation', requestId, error);
     await handleAgentFailure(requestId, 'validation', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return createErrorResponse(500, 'Validation processing failed', { error: errorMessage });
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
+    return createErrorResponse(500, 'Validation processing failed', {
+      error: errorMessage,
+    });
   }
 }
 
 /**
  * Performs validation of all activities using Google Places API
  */
-async function performActivityValidation(activities: Activity[]): Promise<ValidationResults> {
+async function performActivityValidation(
+  activities: Activity[]
+): Promise<ValidationResults> {
   const validatedActivities: Activity[] = [];
   const apiUsage = {
     placesApiCalls: 0,
     rateLimitHits: 0,
-    errors: 0
+    errors: 0,
   };
 
   // Process activities with rate limiting (avoid hitting Google's limits)
   for (const activity of activities) {
     try {
       const validationResult = await validateSingleActivity(activity);
-      
+
       // Update activity with validation results
       activity.validation = validationResult.validation;
       if (validationResult.updatedLocation) {
-        activity.location = { ...activity.location, ...validationResult.updatedLocation };
+        activity.location = {
+          ...activity.location,
+          ...validationResult.updatedLocation,
+        };
       }
-      
+
       validatedActivities.push(activity);
       apiUsage.placesApiCalls++;
-      
+
       // Rate limiting: 100ms delay between calls
       await new Promise(resolve => setTimeout(resolve, 100));
-      
     } catch (error) {
       // Handle individual activity validation failures gracefully
       activity.validation = {
@@ -169,19 +172,29 @@ async function performActivityValidation(activities: Activity[]): Promise<Valida
         googlePlaceId: null,
         lastUpdated: new Date(),
         confidence: 0,
-        issues: [(error instanceof Error ? error.message : 'Validation failed')]
+        issues: [error instanceof Error ? error.message : 'Validation failed'],
       };
-      
+
       validatedActivities.push(activity);
       apiUsage.errors++;
     }
   }
 
   // Calculate validation summary
-  const verifiedCount = validatedActivities.filter(a => a.validation?.status === 'verified').length;
-  const pendingCount = validatedActivities.filter(a => a.validation?.status === 'pending').length;
-  const failedCount = validatedActivities.filter(a => a.validation?.status === 'failed').length;
-  const averageConfidence = validatedActivities.reduce((sum, a) => sum + (a.validation?.confidence || 0), 0) / validatedActivities.length;
+  const verifiedCount = validatedActivities.filter(
+    a => a.validation?.status === 'verified'
+  ).length;
+  const pendingCount = validatedActivities.filter(
+    a => a.validation?.status === 'pending'
+  ).length;
+  const failedCount = validatedActivities.filter(
+    a => a.validation?.status === 'failed'
+  ).length;
+  const averageConfidence =
+    validatedActivities.reduce(
+      (sum, a) => sum + (a.validation?.confidence || 0),
+      0
+    ) / validatedActivities.length;
 
   return {
     validatedActivities,
@@ -190,9 +203,9 @@ async function performActivityValidation(activities: Activity[]): Promise<Valida
       verifiedCount,
       pendingCount,
       failedCount,
-      averageConfidence: Math.round(averageConfidence * 100) / 100
+      averageConfidence: Math.round(averageConfidence * 100) / 100,
     },
-    apiUsage
+    apiUsage,
   };
 }
 
@@ -206,10 +219,13 @@ async function validateSingleActivity(activity: Activity): Promise<{
   try {
     // Build search query
     const searchQuery = buildPlacesSearchQuery(activity);
-    
+
     // Search for the place
-    const placesResult = await searchGooglePlaces(searchQuery, activity.location.coordinates);
-    
+    const placesResult = await searchGooglePlaces(
+      searchQuery,
+      activity.location.coordinates
+    );
+
     if (!placesResult) {
       return {
         validation: {
@@ -217,20 +233,20 @@ async function validateSingleActivity(activity: Activity): Promise<{
           googlePlaceId: null,
           lastUpdated: new Date(),
           confidence: 0.3,
-          issues: ['No matching place found in Google Places']
-        }
+          issues: ['No matching place found in Google Places'],
+        },
       };
     }
 
     // Calculate confidence based on name similarity and location proximity
     const confidence = calculateValidationConfidence(activity, placesResult);
-    
+
     const validation: ValidationResult = {
       status: confidence > 0.7 ? 'verified' : 'pending',
       googlePlaceId: placesResult.place_id,
       lastUpdated: new Date(),
       confidence,
-      issues: confidence < 0.5 ? ['Low confidence match'] : []
+      issues: confidence < 0.5 ? ['Low confidence match'] : [],
     };
 
     // Update location data if we have better information
@@ -239,14 +255,14 @@ async function validateSingleActivity(activity: Activity): Promise<{
       address: placesResult.formatted_address,
       coordinates: {
         lat: placesResult.geometry.location.lat,
-        lng: placesResult.geometry.location.lng
-      }
+        lng: placesResult.geometry.location.lng,
+      },
     };
 
     return { validation, updatedLocation };
-    
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Google Places API error: ${errorMessage}`);
   }
 }
@@ -264,7 +280,7 @@ function buildPlacesSearchQuery(activity: Activity): string {
  * Searches Google Places API for a location
  */
 async function searchGooglePlaces(
-  query: string, 
+  query: string,
   coordinates: { lat: number; lng: number }
 ): Promise<GooglePlacesResult | null> {
   try {
@@ -272,7 +288,7 @@ async function searchGooglePlaces(
       query,
       location: `${coordinates.lat},${coordinates.lng}`,
       radius: '5000', // 5km radius
-      key: config.api.googlePlacesApiKey
+      key: config.api.googlePlacesApiKey,
     });
 
     const response = await fetch(
@@ -280,8 +296,8 @@ async function searchGooglePlaces(
       {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
-        }
+          Accept: 'application/json',
+        },
       }
     );
 
@@ -289,20 +305,20 @@ async function searchGooglePlaces(
       throw new Error(`Google Places API error: ${response.status}`);
     }
 
-    const data = await response.json() as any;
-    
+    const data = (await response.json()) as any;
+
     if (data.status === 'OVER_QUERY_LIMIT') {
       throw new Error('Google Places API rate limit exceeded');
     }
-    
+
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       throw new Error(`Google Places API error: ${data.status}`);
     }
 
     return data.results && data.results.length > 0 ? data.results[0] : null;
-    
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to search Google Places: ${errorMessage}`);
   }
 }
@@ -311,13 +327,14 @@ async function searchGooglePlaces(
  * Calculates validation confidence based on name similarity and location proximity
  */
 function calculateValidationConfidence(
-  activity: Activity, 
+  activity: Activity,
   placesResult: GooglePlacesResult
 ): number {
   // Name similarity (simple contains check - could be enhanced with fuzzy matching)
   const activityName = activity.name.toLowerCase();
   const placeName = placesResult.name.toLowerCase();
-  const nameMatch = placeName.includes(activityName) || activityName.includes(placeName);
+  const nameMatch =
+    placeName.includes(activityName) || activityName.includes(placeName);
   const nameScore = nameMatch ? 0.8 : 0.3;
 
   // Location proximity (within reasonable distance)
@@ -325,7 +342,7 @@ function calculateValidationConfidence(
     activity.location.coordinates,
     placesResult.geometry.location
   );
-  
+
   // Distance scoring: <1km = 1.0, 1-5km = 0.7, 5-10km = 0.4, >10km = 0.1
   let locationScore = 1.0;
   if (distance > 1) locationScore = 0.7;
@@ -333,11 +350,12 @@ function calculateValidationConfidence(
   if (distance > 10) locationScore = 0.1;
 
   // Business status check
-  const statusScore = placesResult.business_status === 'OPERATIONAL' ? 1.0 : 0.7;
+  const statusScore =
+    placesResult.business_status === 'OPERATIONAL' ? 1.0 : 0.7;
 
   // Combined confidence (weighted average)
-  const confidence = (nameScore * 0.5) + (locationScore * 0.3) + (statusScore * 0.2);
-  
+  const confidence = nameScore * 0.5 + locationScore * 0.3 + statusScore * 0.2;
+
   return Math.min(Math.max(confidence, 0), 1);
 }
 
@@ -349,19 +367,25 @@ function calculateDistance(
   coord2: { lat: number; lng: number }
 ): number {
   const R = 6371; // Earth's radius in kilometers
-  const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
-  const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
-            Math.sin(dLng/2) * Math.sin(dLng/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const dLat = ((coord2.lat - coord1.lat) * Math.PI) / 180;
+  const dLng = ((coord2.lng - coord1.lng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((coord1.lat * Math.PI) / 180) *
+      Math.cos((coord2.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
 /**
  * Saves validation results to Redis for next agent
  */
-async function saveValidationResults(requestId: string, results: ValidationResults): Promise<void> {
+async function saveValidationResults(
+  requestId: string,
+  results: ValidationResults
+): Promise<void> {
   const key = `validation_results:${requestId}`;
   await redis.setex(key, 3600, JSON.stringify(results)); // 1 hour expiry
 }
@@ -369,14 +393,21 @@ async function saveValidationResults(requestId: string, results: ValidationResul
 /**
  * Retrieves validation results from Redis (for other agents)
  */
-export async function getValidationResults(requestId: string): Promise<ValidationResults | null> {
+export async function getValidationResults(
+  requestId: string
+): Promise<ValidationResults | null> {
   try {
     const key = `validation_results:${requestId}`;
     const data = await redis.get(key);
     return data ? JSON.parse(data as string) : null;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    agentLogger.agentError('validation', requestId, new Error(`Failed to retrieve validation results: ${errorMessage}`));
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    agentLogger.agentError(
+      'validation',
+      requestId,
+      new Error(`Failed to retrieve validation results: ${errorMessage}`)
+    );
     return null;
   }
 }

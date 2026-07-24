@@ -1,16 +1,15 @@
-// ItineraryRequest processing pipeline
-// Based on story 1.3 requirements for multi-agent orchestration
-
 import { Redis } from '@upstash/redis';
+import { randomUUID } from 'crypto';
 import { config } from '@swift-travel/shared/config';
-import { 
-  ItineraryRequest, 
-  ProcessingStatus, 
+import { CreateItineraryRequest as CreateItineraryRequestSchema } from '@swift-travel/shared/schemas/api';
+import {
+  ItineraryRequest,
+  UserRequirements,
+  ProcessingStatus,
   AgentProcessingLog,
-  ProcessingError
+  ProcessingError,
 } from '@swift-travel/shared/types';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
-// Auth validation handled at API gateway level
 import { logger } from '../shared/logger';
 
 const redis = new Redis({
@@ -19,7 +18,8 @@ const redis = new Redis({
 });
 
 interface ProcessRequestBody {
-  itineraryRequestId: string;
+  itineraryRequestId?: string;
+  requirements?: UserRequirements;
 }
 
 /**
@@ -34,21 +34,47 @@ export async function handler(event: any) {
     }
 
     const body = JSON.parse(event.body || '{}') as ProcessRequestBody;
-    if (!body.itineraryRequestId) {
-      return createErrorResponse(400, 'Missing itineraryRequestId', {});
+    let requestData: ItineraryRequest | null;
+
+    if (body.requirements) {
+      const parsed = CreateItineraryRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        return createErrorResponse(400, 'Invalid itinerary requirements', {
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const now = new Date();
+      requestData = {
+        id: randomUUID(),
+        userId: 'anonymous',
+        itineraryId: null,
+        requirements: {
+          ...parsed.data.requirements,
+          duration: 'long-weekend',
+        },
+        status: 'initiated',
+        processingLog: [],
+        errorDetails: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveItineraryRequest(requestData);
+    } else if (body.itineraryRequestId) {
+      requestData = await getItineraryRequest(body.itineraryRequestId);
+    } else {
+      return createErrorResponse(400, 'Missing requirements', {});
     }
 
-    const startTime = Date.now();
-    logger.info('Starting itinerary request processing', { 
-      requestId: body.itineraryRequestId,
-      startTime 
-    });
-
-    // Get the itinerary request from Redis
-    const requestData = await getItineraryRequest(body.itineraryRequestId);
     if (!requestData) {
       return createErrorResponse(404, 'Itinerary request not found', {});
     }
+
+    const startTime = Date.now();
+    logger.info('Starting itinerary request processing', {
+      requestId: requestData.id,
+      startTime,
+    });
 
     // Initialize processing state
     await initializeProcessing(requestData, startTime);
@@ -56,29 +82,37 @@ export async function handler(event: any) {
     // Start the research agent
     await triggerResearchAgent(requestData.id);
 
-    return createSuccessResponse({
-      requestId: requestData.id,
-      status: 'research-in-progress',
-      message: 'Processing initiated successfully'
-    });
-
+    return createSuccessResponse(
+      {
+        requestId: requestData.id,
+        itineraryRequest: requestData,
+        status: 'research-in-progress',
+        message: 'Processing initiated successfully',
+      },
+      202
+    );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     logger.error('Error processing itinerary request', { error: errorMessage });
-    return createErrorResponse(500, 'Processing failed', { error: errorMessage });
+    return createErrorResponse(500, 'Processing failed', {
+      error: errorMessage,
+    });
   }
 }
 
 /**
  * Retrieves itinerary request from Redis
  */
-export async function getItineraryRequest(requestId: string): Promise<ItineraryRequest | null> {
+export async function getItineraryRequest(
+  requestId: string
+): Promise<ItineraryRequest | null> {
   try {
     const data = await redis.get(`itinerary_request:${requestId}`);
     if (!data) {
       return null;
     }
-    
+
     // Parse dates properly
     const parsed = JSON.parse(data as string);
     return {
@@ -90,13 +124,13 @@ export async function getItineraryRequest(requestId: string): Promise<ItineraryR
         dates: {
           startDate: new Date(parsed.requirements.dates.startDate),
           endDate: new Date(parsed.requirements.dates.endDate),
-        }
+        },
       },
       processingLog: parsed.processingLog.map((log: any) => ({
         ...log,
         startTime: new Date(log.startTime),
         endTime: log.endTime ? new Date(log.endTime) : null,
-      }))
+      })),
     };
   } catch (error) {
     logger.error('Error retrieving itinerary request', { requestId, error });
@@ -107,11 +141,14 @@ export async function getItineraryRequest(requestId: string): Promise<ItineraryR
 /**
  * Initializes processing state and monitoring
  */
-async function initializeProcessing(request: ItineraryRequest, startTime: number): Promise<void> {
+async function initializeProcessing(
+  request: ItineraryRequest,
+  startTime: number
+): Promise<void> {
   // Update request status
   request.status = 'research-in-progress';
   request.updatedAt = new Date();
-  
+
   // Add initial processing log entry
   const initialLog: AgentProcessingLog = {
     agent: 'research',
@@ -119,21 +156,21 @@ async function initializeProcessing(request: ItineraryRequest, startTime: number
     endTime: null,
     status: 'research-in-progress',
     data: { initialized: true },
-    error: null
+    error: null,
   };
-  
+
   request.processingLog.push(initialLog);
-  
+
   // Save to Redis with timeout monitoring
   await saveItineraryRequest(request);
-  
+
   // Set processing timeout (20 seconds)
   await redis.setex(
-    `processing_timeout:${request.id}`, 
-    20, 
+    `processing_timeout:${request.id}`,
+    20,
     JSON.stringify({ startTime, maxDuration: 20000 })
   );
-  
+
   logger.info('Processing initialized', { requestId: request.id });
 }
 
@@ -143,7 +180,7 @@ async function initializeProcessing(request: ItineraryRequest, startTime: number
 async function triggerResearchAgent(requestId: string): Promise<void> {
   try {
     // Make internal API call to research agent
-    const response = await fetch(`${config.frontend.baseUrl}/agents/research`, {
+    const response = await fetch(`${config.frontend.baseUrl}/agents-research`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -168,14 +205,17 @@ async function triggerResearchAgent(requestId: string): Promise<void> {
  * Handles agent failures with graceful degradation
  */
 export async function handleAgentFailure(
-  requestId: string, 
-  agent: AgentProcessingLog['agent'], 
+  requestId: string,
+  agent: AgentProcessingLog['agent'],
   error: any
 ): Promise<void> {
   try {
     const request = await getItineraryRequest(requestId);
     if (!request) {
-      logger.error('Cannot handle failure - request not found', { requestId, agent });
+      logger.error('Cannot handle failure - request not found', {
+        requestId,
+        agent,
+      });
       return;
     }
 
@@ -183,14 +223,14 @@ export async function handleAgentFailure(
       code: error.code || 'AGENT_FAILURE',
       message: error.message || 'Agent processing failed',
       details: { agent, stack: error.stack },
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     // Update the current agent's log entry
     const currentLog = request.processingLog.find(
       log => log.agent === agent && log.status === 'running'
     );
-    
+
     if (currentLog) {
       currentLog.status = 'failed';
       currentLog.endTime = new Date();
@@ -203,19 +243,29 @@ export async function handleAgentFailure(
     request.updatedAt = new Date();
 
     await saveItineraryRequest(request);
-    
-    logger.error('Agent failure handled', { requestId, agent, error: processingError });
+
+    logger.error('Agent failure handled', {
+      requestId,
+      agent,
+      error: processingError,
+    });
   } catch (handlingError) {
-    logger.error('Error handling agent failure', { requestId, agent, handlingError });
+    logger.error('Error handling agent failure', {
+      requestId,
+      agent,
+      handlingError,
+    });
   }
 }
 
 /**
  * Saves itinerary request to Redis
  */
-export async function saveItineraryRequest(request: ItineraryRequest): Promise<void> {
+export async function saveItineraryRequest(
+  request: ItineraryRequest
+): Promise<void> {
   await redis.set(
-    `itinerary_request:${request.id}`, 
+    `itinerary_request:${request.id}`,
     JSON.stringify(request),
     { ex: 3600 } // 1 hour expiry
   );
@@ -239,7 +289,7 @@ export async function completeAgentProcessing(
     const currentLog = request.processingLog.find(
       log => log.agent === agent && log.status === 'running'
     );
-    
+
     if (currentLog) {
       currentLog.status = 'completed';
       currentLog.endTime = new Date();
@@ -259,7 +309,7 @@ export async function completeAgentProcessing(
         endTime: null,
         status: 'research-in-progress',
         data: {},
-        error: null
+        error: null,
       };
       request.processingLog.push(nextLog);
     }
@@ -273,7 +323,11 @@ export async function completeAgentProcessing(
 
     logger.info('Agent processing completed', { requestId, agent, nextAgent });
   } catch (error) {
-    logger.error('Error completing agent processing', { requestId, agent, error });
+    logger.error('Error completing agent processing', {
+      requestId,
+      agent,
+      error,
+    });
     await handleAgentFailure(requestId, agent, error);
     throw error;
   }
@@ -284,10 +338,19 @@ export async function completeAgentProcessing(
  */
 function getNextProcessingStep(currentAgent: AgentProcessingLog['agent']) {
   const agentFlow = {
-    research: { nextStatus: 'curation-in-progress' as ProcessingStatus, nextAgent: 'curation' as const },
-    curation: { nextStatus: 'validation-in-progress' as ProcessingStatus, nextAgent: 'validation' as const },
-    validation: { nextStatus: 'response-in-progress' as ProcessingStatus, nextAgent: 'response' as const },
-    response: { nextStatus: 'completed' as ProcessingStatus, nextAgent: null }
+    research: {
+      nextStatus: 'curation-in-progress' as ProcessingStatus,
+      nextAgent: 'curation' as const,
+    },
+    curation: {
+      nextStatus: 'validation-in-progress' as ProcessingStatus,
+      nextAgent: 'validation' as const,
+    },
+    validation: {
+      nextStatus: 'response-in-progress' as ProcessingStatus,
+      nextAgent: 'response' as const,
+    },
+    response: { nextStatus: 'completed' as ProcessingStatus, nextAgent: null },
   };
 
   return agentFlow[currentAgent];
@@ -296,9 +359,12 @@ function getNextProcessingStep(currentAgent: AgentProcessingLog['agent']) {
 /**
  * Triggers the next agent in the pipeline
  */
-async function triggerNextAgent(agent: AgentProcessingLog['agent'], requestId: string): Promise<void> {
+async function triggerNextAgent(
+  agent: AgentProcessingLog['agent'],
+  requestId: string
+): Promise<void> {
   try {
-    const response = await fetch(`${config.frontend.baseUrl}/agents/${agent}`, {
+    const response = await fetch(`${config.frontend.baseUrl}/agents-${agent}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -322,7 +388,9 @@ async function triggerNextAgent(agent: AgentProcessingLog['agent'], requestId: s
 /**
  * Monitors processing timeouts
  */
-export async function monitorProcessingTimeout(requestId: string): Promise<void> {
+export async function monitorProcessingTimeout(
+  requestId: string
+): Promise<void> {
   try {
     const timeoutData = await redis.get(`processing_timeout:${requestId}`);
     if (!timeoutData) {
@@ -333,12 +401,16 @@ export async function monitorProcessingTimeout(requestId: string): Promise<void>
     const elapsed = Date.now() - startTime;
 
     if (elapsed > maxDuration) {
-      logger.warn('Processing timeout exceeded', { requestId, elapsed, maxDuration });
-      
+      logger.warn('Processing timeout exceeded', {
+        requestId,
+        elapsed,
+        maxDuration,
+      });
+
       // Handle timeout as failure
       await handleAgentFailure(requestId, 'research', {
         code: 'PROCESSING_TIMEOUT',
-        message: `Processing exceeded maximum duration of ${maxDuration}ms`
+        message: `Processing exceeded maximum duration of ${maxDuration}ms`,
       });
 
       // Clean up timeout monitoring

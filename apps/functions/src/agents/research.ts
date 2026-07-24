@@ -8,6 +8,7 @@ import {
   UserRequirements,
   TravelerComposition,
 } from '@swift-travel/shared';
+import { TavilyClient, type TavilySearchResult } from '@swift-travel/agents';
 import { createErrorResponse, createSuccessResponse } from '../shared/response';
 import { requireInternalAuth } from '../shared/auth';
 import { agentLogger } from '../shared/logger';
@@ -77,12 +78,11 @@ export async function handler(event: any) {
   let requestId: string = '';
 
   try {
-    // Validate authentication
-    requireInternalAuth(event);
-
     if (event.httpMethod !== 'POST') {
       return createErrorResponse(405, 'Method not allowed', {});
     }
+
+    requireInternalAuth(event);
 
     const body = JSON.parse(event.body || '{}') as ResearchRequestBody;
     requestId = body.requestId;
@@ -96,7 +96,7 @@ export async function handler(event: any) {
     // Get the itinerary request
     const request = await getItineraryRequest(requestId);
     if (!request) {
-      throw new Error('Itinerary request not found');
+      return createErrorResponse(404, 'Itinerary request not found', {});
     }
 
     // Perform research
@@ -140,12 +140,22 @@ export async function handler(event: any) {
 }
 
 /**
- * Performs comprehensive destination research using OpenAI GPT-4
+ * Performs comprehensive destination research using Tavily web search + OpenAI GPT-4.
+ * Web search results are injected into the LLM prompt as ground-truth context.
  */
 async function performDestinationResearch(
   requirements: UserRequirements
 ): Promise<ResearchResult> {
-  const prompt = buildResearchPrompt(requirements);
+  // Step 1: Web search for real, up-to-date context
+  const tavily = new TavilyClient({ apiKey: config.api.tavilyApiKey });
+  const webResults = await tavilySearchDestination(
+    requirements.destination,
+    tavily
+  );
+  agentLogger.agentStart('research.web', requirements.destination);
+
+  // Step 2: LLM synthesis with web context
+  const prompt = buildResearchPrompt(requirements, webResults);
 
   try {
     const response = await openai.chat.completions.create({
@@ -153,7 +163,7 @@ async function performDestinationResearch(
       messages: [
         {
           role: 'system',
-          content: `You are a travel research expert specializing in US and Canadian destinations for long weekend getaways (3-4 days). Provide comprehensive, accurate travel information in JSON format. Focus on practical details that would help create a detailed weekend itinerary with interest-based personalization.`,
+          content: `You are a travel research expert specializing in US and Canadian destinations for long weekend getaways (3-4 days). You have been provided with recent web search results about the destination — use them as ground-truth context when forming your recommendations. Provide comprehensive, accurate travel information in JSON format. Focus on practical details that would help create a detailed weekend itinerary with interest-based personalization.`,
         },
         {
           role: 'user',
@@ -180,9 +190,53 @@ async function performDestinationResearch(
 }
 
 /**
- * Builds comprehensive research prompt for OpenAI
+ * Run Tavily web search across multiple queries to gather real destination context.
+ * Returns the top results sorted by relevance score.
  */
-function buildResearchPrompt(requirements: UserRequirements): string {
+async function tavilySearchDestination(
+  destination: string,
+  tavily: TavilyClient
+): Promise<TavilySearchResult[]> {
+  const queries = [
+    {
+      label: 'overview',
+      query: `${destination} travel guide long weekend highlights`,
+    },
+    {
+      label: 'food',
+      query: `${destination} best restaurants local food scene 2026`,
+    },
+    {
+      label: 'attractions',
+      query: `${destination} top attractions must-see activities`,
+    },
+    {
+      label: 'neighborhoods',
+      query: `${destination} neighborhoods best areas to stay visit`,
+    },
+  ];
+
+  try {
+    return await tavily.searchMany(queries, {
+      searchDepth: 'advanced',
+      maxResults: 10,
+      includeAnswer: false,
+    });
+  } catch (err) {
+    // Web search failure is non-fatal — log and continue with LLM-only research
+    agentLogger.agentError('research.web', destination, err);
+    return [];
+  }
+}
+
+/**
+ * Builds comprehensive research prompt for OpenAI.
+ * When webResults are provided they are included as ground-truth context.
+ */
+function buildResearchPrompt(
+  requirements: UserRequirements,
+  webResults: TavilySearchResult[] = []
+): string {
   const {
     destination,
     interests = [],
@@ -199,6 +253,18 @@ function buildResearchPrompt(requirements: UserRequirements): string {
     childrenInfo = `\nChildren ages: ${travelerComposition.childrenAges.join(', ')}\nAge groups present: ${ageGroups.join(', ')}`;
   }
 
+  // Format web search context
+  let webContext = '';
+  if (webResults.length > 0) {
+    webContext = `
+--- RECENT WEB SEARCH RESULTS (use as ground-truth context) ---
+${webResults
+  .map((r, i) => `[${i + 1}] ${r.title}\n    URL: ${r.url}\n    ${r.content}`)
+  .join('\n\n')}
+--- END WEB SEARCH RESULTS ---
+`;
+  }
+
   return `
 Research destination: ${destination} (MUST be in USA or Canada)
 Trip duration: Long weekend (3-4 days)
@@ -208,12 +274,13 @@ Adults: ${travelerComposition?.adults || groupSize}
 Children: ${travelerComposition?.children || 0}${childrenInfo}
 Special requests: ${specialRequests.join(', ') || 'None'}
 Accessibility needs: ${accessibilityNeeds.join(', ') || 'None'}
-
+${webContext}
 IMPORTANT CONSTRAINTS:
 1. The destination MUST be in the United States or Canada only
 2. Focus on a long weekend itinerary (3-4 days)
 3. Prioritize activities based on the specified interests
 4. If children are present, ensure all recommendations are age-appropriate
+5. When web search results are provided, prefer specific venue names and details from those results over general knowledge
 
 Provide comprehensive destination research in the following JSON structure:
 
@@ -239,18 +306,26 @@ Provide comprehensive destination research in the following JSON structure:
     "familyFriendlyOptions": ["family activities IF children present", "kid-friendly dining", "family amenities"]
   },
   "interestRecommendations": {
-    ${interests.map(interest => `"${interest}": {
+    ${interests
+      .map(
+        interest => `"${interest}": {
       "focus": ["${interest}-specific highlights", "unique ${interest} experiences"],
       "recommendations": ["top ${interest} activities", "weekend ${interest} spots"],
       "tips": ["${interest} insider tips", "best times for ${interest}"]
-    }`).join(',\n    ')}
+    }`
+      )
+      .join(',\n    ')}
   },
-  ${travelerComposition?.children ? `"ageAppropriateActivities": {
+  ${
+    travelerComposition?.children
+      ? `"ageAppropriateActivities": {
     ${travelerComposition.childrenAges.some(age => age <= 2) ? '"babies": ["baby-friendly venues", "nursing/changing facilities", "stroller-accessible spots"],' : ''}
     ${travelerComposition.childrenAges.some(age => age >= 3 && age <= 5) ? '"toddlers": ["toddler-safe activities", "short-attention span friendly", "playground locations"],' : ''}
     ${travelerComposition.childrenAges.some(age => age >= 6 && age <= 11) ? '"kids": ["interactive experiences", "educational fun", "kid-friendly attractions"],' : ''}
     ${travelerComposition.childrenAges.some(age => age >= 12 && age <= 17) ? '"teens": ["teen-engaging activities", "social media worthy spots", "adventure options"],' : ''}
-  },` : ''}
+  },`
+      : ''
+  }
   "researchSources": ["official tourism sites", "local guides", "recent travel data"],
   "confidence": 0.85
 }
@@ -291,20 +366,27 @@ function validateAndFormatResearchResult(
 
   // Validate country is US or Canada
   const country = parsedResult.destination.country?.toUpperCase();
-  if (country !== 'USA' && country !== 'CANADA' && 
-      country !== 'UNITED STATES' && country !== 'US') {
+  if (
+    country !== 'USA' &&
+    country !== 'CANADA' &&
+    country !== 'UNITED STATES' &&
+    country !== 'US'
+  ) {
     throw new Error(`Destination must be in USA or Canada, got: ${country}`);
   }
 
   // Normalize country name
-  const normalizedCountry = (country === 'UNITED STATES' || country === 'US') ? 'USA' : 'Canada';
+  const normalizedCountry =
+    country === 'UNITED STATES' || country === 'US' ? 'USA' : 'Canada';
 
   // Build interest recommendations with defaults
   const interestRecommendations: Record<string, any> = {};
   const interests = requirements.interests || [];
-  
+
   interests.forEach(interest => {
-    interestRecommendations[interest] = parsedResult.interestRecommendations?.[interest] || {
+    interestRecommendations[interest] = parsedResult.interestRecommendations?.[
+      interest
+    ] || {
       focus: [`${interest} experiences`, `${interest} highlights`],
       recommendations: [`Top ${interest} activities`],
       tips: [`Best times for ${interest}`],
@@ -330,15 +412,22 @@ function validateAndFormatResearchResult(
       attractions: parsedResult.contextData.attractions || [],
       neighborhoods: parsedResult.contextData.neighborhoods || [],
       transportation: parsedResult.contextData.transportation || [],
-      longWeekendHighlights: parsedResult.contextData.longWeekendHighlights || 
-        ['Perfect for a 3-4 day visit', 'Weekend getaway highlights'],
-      familyFriendlyOptions: requirements.travelerComposition?.children 
-        ? parsedResult.contextData.familyFriendlyOptions || ['Family-friendly activities available']
+      longWeekendHighlights: parsedResult.contextData.longWeekendHighlights || [
+        'Perfect for a 3-4 day visit',
+        'Weekend getaway highlights',
+      ],
+      familyFriendlyOptions: requirements.travelerComposition?.children
+        ? parsedResult.contextData.familyFriendlyOptions || [
+            'Family-friendly activities available',
+          ]
         : undefined,
     },
     interestRecommendations,
-    ageAppropriateActivities: requirements.travelerComposition?.children 
-      ? buildAgeAppropriateActivities(parsedResult.ageAppropriateActivities, requirements.travelerComposition)
+    ageAppropriateActivities: requirements.travelerComposition?.children
+      ? buildAgeAppropriateActivities(
+          parsedResult.ageAppropriateActivities,
+          requirements.travelerComposition
+        )
       : undefined,
     researchSources: parsedResult.researchSources || ['GPT-4 Knowledge Base'],
     confidence: Math.min(Math.max(parsedResult.confidence || 0.85, 0), 1),
@@ -355,39 +444,39 @@ function buildAgeAppropriateActivities(
   composition: TravelerComposition
 ): ResearchResult['ageAppropriateActivities'] {
   const result: ResearchResult['ageAppropriateActivities'] = {};
-  
+
   if (composition.childrenAges.some(age => age <= 2)) {
     result.babies = activities?.babies || [
       'Baby-friendly venues with changing facilities',
       'Stroller-accessible attractions',
-      'Quiet spaces for nursing'
+      'Quiet spaces for nursing',
     ];
   }
-  
+
   if (composition.childrenAges.some(age => age >= 3 && age <= 5)) {
     result.toddlers = activities?.toddlers || [
       'Short, engaging activities',
       'Playgrounds and interactive spaces',
-      'Toddler-friendly dining'
+      'Toddler-friendly dining',
     ];
   }
-  
+
   if (composition.childrenAges.some(age => age >= 6 && age <= 11)) {
     result.kids = activities?.kids || [
       'Interactive museums and exhibits',
       'Outdoor adventures',
-      'Educational entertainment'
+      'Educational entertainment',
     ];
   }
-  
+
   if (composition.childrenAges.some(age => age >= 12 && age <= 17)) {
     result.teens = activities?.teens || [
       'Adventure activities',
       'Shopping and entertainment districts',
-      'Social media worthy experiences'
+      'Social media worthy experiences',
     ];
   }
-  
+
   return result;
 }
 

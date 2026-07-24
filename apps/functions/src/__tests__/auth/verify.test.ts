@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { HandlerEvent, HandlerContext, HandlerResponse } from '@netlify/functions';
+import type {
+  HandlerEvent,
+  HandlerContext,
+  HandlerResponse,
+} from '@netlify/functions';
 
 // Mock all dependencies
 vi.mock('@supabase/supabase-js', () => ({
@@ -7,44 +11,44 @@ vi.mock('@supabase/supabase-js', () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          single: vi.fn()
-        })
+          single: vi.fn(),
+        }),
       }),
       insert: () => ({
         select: () => ({
-          single: vi.fn()
-        })
+          single: vi.fn(),
+        }),
       }),
       update: () => ({
         eq: () => ({
           select: () => ({
-            single: vi.fn()
-          })
-        })
-      })
-    })
-  })
+            single: vi.fn(),
+          }),
+        }),
+      }),
+    }),
+  }),
 }));
 
 vi.mock('ioredis', () => ({
   default: class MockRedis {
     get = vi.fn();
     del = vi.fn();
-  }
+  },
 }));
 
 vi.mock('pino', () => ({
   default: () => ({
     info: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn()
-  })
+    error: vi.fn(),
+  }),
 }));
 
 vi.mock('jsonwebtoken', () => ({
   default: {
-    sign: vi.fn(() => 'test-jwt-token')
-  }
+    sign: vi.fn(() => 'test-jwt-token'),
+  },
 }));
 
 vi.mock('@swift-travel/shared/config/auth', () => ({
@@ -54,8 +58,8 @@ vi.mock('@swift-travel/shared/config/auth', () => ({
     upstashRedisUrl: 'redis://test',
     upstashRedisToken: 'test-token',
     sessionExpirationHours: 24,
-    jwtSecret: 'test-secret'
-  }
+    jwtSecret: 'test-secret',
+  },
 }));
 
 // Import the handler after mocks are set up
@@ -74,7 +78,7 @@ function createMockEvent(overrides: Partial<HandlerEvent> = {}): HandlerEvent {
     queryStringParameters: {},
     multiValueQueryStringParameters: {},
     isBase64Encoded: false,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -93,7 +97,7 @@ function createMockContext(): HandlerContext {
     getRemainingTimeInMillis: () => 5000,
     done: () => {},
     fail: () => {},
-    succeed: () => {}
+    succeed: () => {},
   };
 }
 
@@ -109,42 +113,51 @@ describe('Token Verification', () => {
   describe('POST /auth/verify', () => {
     it('should reject invalid token', async () => {
       const event = createMockEvent({
-        body: JSON.stringify({ token: 'invalid-token' })
+        body: JSON.stringify({ token: 'invalid-token' }),
       });
 
-      const response = await handler(event, createMockContext()) as HandlerResponse;
+      const response = (await handler(
+        event,
+        createMockContext()
+      )) as HandlerResponse;
 
       expect(response!.statusCode).toBe(401);
       expect(JSON.parse(response!.body!)).toMatchObject({
-        error: 'Invalid token',
-        message: expect.stringContaining('invalid or has expired')
+        error: 'INVALID_TOKEN',
+        message: expect.stringContaining('invalid or has expired'),
       });
     });
 
     it('should reject missing token', async () => {
       const event = createMockEvent({
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
 
-      const response = await handler(event, createMockContext()) as HandlerResponse;
+      const response = (await handler(
+        event,
+        createMockContext()
+      )) as HandlerResponse;
 
       expect(response!.statusCode).toBe(400);
       expect(JSON.parse(response!.body!)).toMatchObject({
-        error: 'Invalid request data',
-        message: 'Required'
+        error: 'INVALID_DATA',
+        message: 'Required',
       });
     });
 
     it('should reject non-POST requests', async () => {
       const event = createMockEvent({
-        httpMethod: 'GET'
+        httpMethod: 'GET',
       });
 
-      const response = await handler(event, createMockContext()) as HandlerResponse;
+      const response = (await handler(
+        event,
+        createMockContext()
+      )) as HandlerResponse;
 
       expect(response!.statusCode).toBe(405);
       expect(JSON.parse(response!.body!)).toMatchObject({
-        error: 'Method not allowed'
+        error: 'METHOD_NOT_ALLOWED',
       });
     });
   });

@@ -14,12 +14,13 @@
     "build": "npm run build --workspaces",
     "build:web": "npm run build --workspace=apps/web",
     "build:functions": "npm run build --workspace=apps/functions",
-    "test": "npm run test --workspaces",
-    "test:unit": "vitest run",
+    "test": "npm run test:unit",
+    "test:unit": "npm run test --workspace=packages/shared -- --run && npm run test --workspace=apps/functions -- --run && npm run test --workspace=apps/web -- --run",
     "test:e2e": "playwright test",
     "test:functions": "npm run test --workspace=apps/functions",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
-    "typecheck": "tsc --noEmit",
+    "lint": "eslint apps packages --ext .ts,.tsx --fix",
+    "lint:check": "eslint apps packages --ext .ts,.tsx",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write .",
     "prepare": "husky install",
     "deploy:preview": "netlify deploy --dir=apps/web/out",
@@ -45,7 +46,7 @@
     "npm": ">=9.0.0"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
+    "*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ],

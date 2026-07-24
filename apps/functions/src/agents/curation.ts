@@ -67,12 +67,11 @@ export async function handler(event: any) {
   let requestId: string = '';
 
   try {
-    // Validate authentication
-    requireInternalAuth(event);
-
     if (event.httpMethod !== 'POST') {
       return createErrorResponse(405, 'Method not allowed', {});
     }
+
+    requireInternalAuth(event);
 
     const body = JSON.parse(event.body || '{}') as CurationRequestBody;
     requestId = body.requestId;
@@ -373,7 +372,9 @@ function formatCurationResult(
       themes: parsedResult.itineraryOverview?.themes || [],
       highlights: parsedResult.itineraryOverview?.highlights || [],
       familyConsiderations: request.requirements.travelerComposition?.children
-        ? parsedResult.itineraryOverview?.familyConsiderations || ['Family-friendly itinerary']
+        ? parsedResult.itineraryOverview?.familyConsiderations || [
+            'Family-friendly itinerary',
+          ]
         : undefined,
     },
     curationMetadata: {
@@ -383,7 +384,10 @@ function formatCurationResult(
       ),
       childFriendliness: request.requirements.travelerComposition?.children
         ? Math.min(
-            Math.max(parsedResult.curationMetadata?.childFriendliness || 0.8, 0),
+            Math.max(
+              parsedResult.curationMetadata?.childFriendliness || 0.8,
+              0
+            ),
             1
           )
         : undefined,

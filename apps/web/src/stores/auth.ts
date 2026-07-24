@@ -46,13 +46,15 @@ const devUser: User | null = isDevelopment
       email: 'dev@swift-travel.com',
       name: 'Development User',
       preferences: {
+        defaultPersona: null,
+        budgetRange: 'mid-range',
+        accessibilityNeeds: [],
+        dietaryRestrictions: [],
         travelStyle: 'balanced',
-        pacePreference: 'moderate',
-        budgetLevel: 'moderate',
-        interests: ['culture', 'food', 'nature'],
+        preferredActivities: ['culture', 'dining', 'nature'],
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      lastActiveAt: new Date(),
     }
   : null;
 
