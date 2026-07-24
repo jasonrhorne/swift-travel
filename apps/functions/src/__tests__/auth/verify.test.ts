@@ -30,11 +30,20 @@ vi.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
-vi.mock('ioredis', () => ({
-  default: class MockRedis {
+vi.mock('@upstash/redis', () => ({
+  Redis: class MockRedis {
     get = vi.fn();
+    set = vi.fn();
     del = vi.fn();
   },
+}));
+
+vi.mock('../../shared/redis', () => ({
+  getRedis: () => ({
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
+  }),
 }));
 
 vi.mock('pino', () => ({
