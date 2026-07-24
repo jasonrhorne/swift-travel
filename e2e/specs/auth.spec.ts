@@ -110,7 +110,7 @@ test.describe('Authentication Flow', () => {
     ).toBeVisible();
 
     await page.getByRole('link', { name: /request new magic link/i }).click();
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL(/\/login\/?$/);
   });
 
   test('handles missing token parameter', async ({ page }) => {

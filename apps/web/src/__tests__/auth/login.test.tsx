@@ -6,13 +6,21 @@ import { useAuthStore } from '../../stores/auth';
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({
-  useRouter: vi.fn()
+  useRouter: vi.fn(),
 }));
 
 // Mock auth store
-vi.mock('../../stores/auth', () => ({
-  useAuthStore: vi.fn()
-}));
+vi.mock('../../stores/auth', () => {
+  const mockStoreFn = vi.fn() as any;
+  mockStoreFn.persist = {
+    onFinishHydration: (cb: () => void) => {
+      cb();
+      return vi.fn();
+    },
+    hasHydrated: () => true,
+  };
+  return { useAuthStore: mockStoreFn };
+});
 
 // Mock Link component
 vi.mock('next/link', () => ({
@@ -20,7 +28,7 @@ vi.mock('next/link', () => ({
     <a href={href} {...props}>
       {children}
     </a>
-  )
+  ),
 }));
 
 describe('LoginPage', () => {
@@ -31,9 +39,9 @@ describe('LoginPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     (useRouter as any).mockReturnValue({
-      push: mockPush
+      push: mockPush,
     });
 
     (useAuthStore as any).mockReturnValue({
@@ -44,36 +52,49 @@ describe('LoginPage', () => {
       magicLinkSent: false,
       requestMagicLink: mockRequestMagicLink,
       clearError: mockClearError,
-      resetMagicLinkState: mockResetMagicLinkState
+      resetMagicLinkState: mockResetMagicLinkState,
+      persist: {
+        onFinishHydration: (cb: () => void) => {
+          cb();
+          return vi.fn();
+        },
+        hasHydrated: () => true,
+      },
     });
   });
 
   it('should render login form', () => {
     render(<LoginPage />);
-    
-    expect(screen.getByRole('heading', { name: /welcome to swift travel/i })).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('heading', { name: /welcome to swift travel/i })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /send magic link/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /send magic link/i })
+    ).toBeInTheDocument();
   });
 
   it('should handle email input change', () => {
     render(<LoginPage />);
-    
+
     const emailInput = screen.getByLabelText(/email address/i);
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    
+
     expect(emailInput).toHaveValue('test@example.com');
   });
 
   it('should call requestMagicLink on form submission', async () => {
     render(<LoginPage />);
-    
+
     const emailInput = screen.getByLabelText(/email address/i);
-    const submitButton = screen.getByRole('button', { name: /send magic link/i });
-    
+    const submitButton = screen.getByRole('button', {
+      name: /send magic link/i,
+    });
+
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.click(submitButton);
-    
+
     await waitFor(() => {
       expect(mockRequestMagicLink).toHaveBeenCalledWith('test@example.com');
     });
@@ -88,14 +109,23 @@ describe('LoginPage', () => {
       magicLinkSent: false,
       requestMagicLink: mockRequestMagicLink,
       clearError: mockClearError,
-      resetMagicLinkState: mockResetMagicLinkState
+      resetMagicLinkState: mockResetMagicLinkState,
+      persist: {
+        onFinishHydration: (cb: () => void) => {
+          cb();
+          return vi.fn();
+        },
+        hasHydrated: () => true,
+      },
     });
 
     render(<LoginPage />);
-    
+
     const emailInput = screen.getByLabelText(/email address/i);
-    const submitButton = screen.getByRole('button', { name: /sending magic link/i });
-    
+    const submitButton = screen.getByRole('button', {
+      name: /sending magic link/i,
+    });
+
     expect(emailInput).toBeDisabled();
     expect(submitButton).toBeDisabled();
   });
@@ -109,11 +139,18 @@ describe('LoginPage', () => {
       magicLinkSent: false,
       requestMagicLink: mockRequestMagicLink,
       clearError: mockClearError,
-      resetMagicLinkState: mockResetMagicLinkState
+      resetMagicLinkState: mockResetMagicLinkState,
+      persist: {
+        onFinishHydration: (cb: () => void) => {
+          cb();
+          return vi.fn();
+        },
+        hasHydrated: () => true,
+      },
     });
 
     render(<LoginPage />);
-    
+
     expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
     expect(screen.getByText(/invalid email address/i)).toBeInTheDocument();
   });
@@ -127,14 +164,25 @@ describe('LoginPage', () => {
       magicLinkSent: true,
       requestMagicLink: mockRequestMagicLink,
       clearError: mockClearError,
-      resetMagicLinkState: mockResetMagicLinkState
+      resetMagicLinkState: mockResetMagicLinkState,
+      persist: {
+        onFinishHydration: (cb: () => void) => {
+          cb();
+          return vi.fn();
+        },
+        hasHydrated: () => true,
+      },
     });
 
     render(<LoginPage />);
-    
-    expect(screen.getByRole('heading', { name: /check your email/i })).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('heading', { name: /check your email/i })
+    ).toBeInTheDocument();
     expect(screen.getByText(/test@example.com/)).toBeInTheDocument();
-    expect(screen.getByText(/try a different email address/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/try a different email address/i)
+    ).toBeInTheDocument();
   });
 
   it('should handle try again action', () => {
@@ -146,14 +194,21 @@ describe('LoginPage', () => {
       magicLinkSent: true,
       requestMagicLink: mockRequestMagicLink,
       clearError: mockClearError,
-      resetMagicLinkState: mockResetMagicLinkState
+      resetMagicLinkState: mockResetMagicLinkState,
+      persist: {
+        onFinishHydration: (cb: () => void) => {
+          cb();
+          return vi.fn();
+        },
+        hasHydrated: () => true,
+      },
     });
 
     render(<LoginPage />);
-    
+
     const tryAgainButton = screen.getByText(/try a different email address/i);
     fireEvent.click(tryAgainButton);
-    
+
     expect(mockResetMagicLinkState).toHaveBeenCalled();
   });
 
@@ -166,29 +221,38 @@ describe('LoginPage', () => {
       magicLinkSent: false,
       requestMagicLink: mockRequestMagicLink,
       clearError: mockClearError,
-      resetMagicLinkState: mockResetMagicLinkState
+      resetMagicLinkState: mockResetMagicLinkState,
+      persist: {
+        onFinishHydration: (cb: () => void) => {
+          cb();
+          return vi.fn();
+        },
+        hasHydrated: () => true,
+      },
     });
 
     render(<LoginPage />);
-    
+
     expect(mockPush).toHaveBeenCalledWith('/dashboard');
   });
 
   it('should clear error on component mount', () => {
     render(<LoginPage />);
-    
+
     expect(mockClearError).toHaveBeenCalled();
   });
 
   it('should require email before enabling submit', () => {
     render(<LoginPage />);
-    
-    const submitButton = screen.getByRole('button', { name: /send magic link/i });
+
+    const submitButton = screen.getByRole('button', {
+      name: /send magic link/i,
+    });
     expect(submitButton).toBeDisabled();
-    
+
     const emailInput = screen.getByLabelText(/email address/i);
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    
+
     expect(submitButton).not.toBeDisabled();
   });
 });

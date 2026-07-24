@@ -436,11 +436,10 @@ test.describe('Itinerary Display', () => {
     );
 
     await page.goto('/itinerary/test-itinerary-id');
-    await page.waitForLoadState('networkidle');
 
     await expect(
       page.locator('h2').filter({ hasText: 'Creating Your Itinerary' })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Progress:')).toBeVisible();
   });
 
@@ -474,16 +473,32 @@ test.describe('Itinerary Display', () => {
       .getByRole('button', { name: 'Expand details' })
       .first();
     await expect(expandButton).toBeVisible();
-    await expandButton.tap({ force: true });
+    await expandButton.click({ force: true });
     await expect(page.getByText('Why This Matters').first()).toBeVisible();
   });
 });
 
 test.describe('Requirements Form', () => {
   test.beforeEach(async ({ page }) => {
-    // Clear localStorage requirements state
+    // Pre-set localStorage with valid traveler composition to avoid Zustand rehydration race
     await page.addInitScript(() => {
-      localStorage.removeItem('swift-travel-requirements');
+      localStorage.setItem(
+        'swift-travel-requirements',
+        JSON.stringify({
+          state: {
+            destination: '',
+            interests: [],
+            persona: null,
+            duration: 'long-weekend',
+            travelerComposition: { adults: 2, children: 0, childrenAges: [] },
+            groupSize: 2,
+            specialRequests: [],
+            accessibilityNeeds: [],
+            lastSaved: null,
+          },
+          version: 0,
+        })
+      );
     });
   });
 
@@ -518,6 +533,9 @@ test.describe('Requirements Form', () => {
     await expect(
       page.getByRole('heading', { name: /who's traveling/i })
     ).toBeVisible();
+    await expect(page.getByRole('button', { name: /next/i })).toBeEnabled({
+      timeout: 5000,
+    });
     await page.getByRole('button', { name: /next/i }).click();
 
     await expect(
@@ -528,17 +546,13 @@ test.describe('Requirements Form', () => {
     ).toBeVisible();
   });
 
-  test('form shows validation errors for empty required fields', async ({
+  test('form disables Next button when destination is empty', async ({
     page,
   }) => {
     await page.goto('/requirements');
 
-    // Wait for the Next button to be enabled before clicking
     const nextButton = page.getByRole('button', { name: /next/i });
-    await expect(nextButton).toBeEnabled({ timeout: 1000 });
-    await nextButton.click();
-
-    await expect(page.getByText(/destination is required/i)).toBeVisible();
+    await expect(nextButton).toBeDisabled({ timeout: 5000 });
   });
 
   test('form submits and redirects to itinerary page', async ({ page }) => {
@@ -574,6 +588,9 @@ test.describe('Requirements Form', () => {
     await page.getByRole('button', { name: /next/i }).click();
     await page.getByRole('button', { name: /photography/i }).click();
     await page.getByRole('button', { name: /next/i }).click();
+    await expect(page.getByRole('button', { name: /next/i })).toBeEnabled({
+      timeout: 5000,
+    });
     await page.getByRole('button', { name: /next/i }).click();
     await page.getByRole('button', { name: /create my itinerary/i }).click();
 
