@@ -31,7 +31,7 @@ const mockItinerary: Itinerary = {
   description: 'A weekend adventure focused on capturing the beauty of Paris',
   destination: 'Paris, France',
   persona: 'photography',
-  status: 'finalized',
+  status: 'completed',
   startDate: new Date('2024-03-15'),
   endDate: new Date('2024-03-17'),
   activities: [
@@ -88,7 +88,7 @@ describe('ItineraryDisplay', () => {
   it('shows loading state initially when itinerary is processing', () => {
     mockGetItinerary.mockResolvedValue({
       success: true,
-      data: { ...mockItinerary, status: 'draft' },
+      data: { ...mockItinerary, status: 'processing' },
     });
 
     render(<ItineraryDisplay itineraryId="test-itinerary" />);
@@ -142,7 +142,7 @@ describe('ItineraryDisplay', () => {
   it('displays progress tracking for processing itinerary', async () => {
     mockGetItinerary.mockResolvedValue({
       success: true,
-      data: { ...mockItinerary, status: 'draft' },
+      data: { ...mockItinerary, status: 'processing' },
     });
 
     render(<ItineraryDisplay itineraryId="test-itinerary" />);

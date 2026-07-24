@@ -32,9 +32,9 @@ export const ActivityCategory = z.enum([
   'entertainment',
 ]);
 export const ItineraryStatus = z.enum([
-  'draft',
-  'validated',
-  'finalized',
+  'processing',
+  'completed',
+  'failed',
   'archived',
 ]);
 export const Flexibility = z.enum(['fixed', 'flexible', 'preferred']);

@@ -161,15 +161,8 @@ async function initializeProcessing(
 
   request.processingLog.push(initialLog);
 
-  // Save to Redis with timeout monitoring
+  // Save to Redis
   await saveItineraryRequest(request);
-
-  // Set processing timeout (20 seconds)
-  await redis.setex(
-    `processing_timeout:${request.id}`,
-    20,
-    JSON.stringify({ startTime, maxDuration: 20000 })
-  );
 
   logger.info('Processing initialized', { requestId: request.id });
 }
@@ -382,41 +375,5 @@ async function triggerNextAgent(
     logger.error(`Failed to trigger ${agent} agent`, { requestId, error });
     await handleAgentFailure(requestId, agent, error);
     throw error;
-  }
-}
-
-/**
- * Monitors processing timeouts
- */
-export async function monitorProcessingTimeout(
-  requestId: string
-): Promise<void> {
-  try {
-    const timeoutData = await redis.get(`processing_timeout:${requestId}`);
-    if (!timeoutData) {
-      return; // No timeout monitoring for this request
-    }
-
-    const { startTime, maxDuration } = JSON.parse(timeoutData as string);
-    const elapsed = Date.now() - startTime;
-
-    if (elapsed > maxDuration) {
-      logger.warn('Processing timeout exceeded', {
-        requestId,
-        elapsed,
-        maxDuration,
-      });
-
-      // Handle timeout as failure
-      await handleAgentFailure(requestId, 'research', {
-        code: 'PROCESSING_TIMEOUT',
-        message: `Processing exceeded maximum duration of ${maxDuration}ms`,
-      });
-
-      // Clean up timeout monitoring
-      await redis.del(`processing_timeout:${requestId}`);
-    }
-  } catch (error) {
-    logger.error('Error monitoring processing timeout', { requestId, error });
   }
 }
