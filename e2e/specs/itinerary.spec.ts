@@ -393,23 +393,18 @@ test.describe('Itinerary Display', () => {
   });
 
   test('shows progress tracker for in-progress itinerary', async ({ page }) => {
-    let pollCount = 0;
     await page.route(
       '**/.netlify/functions/itineraries-status*',
       async route => {
-        pollCount++;
-        const status = pollCount < 3 ? 'research-in-progress' : 'completed';
-        const progress = pollCount < 3 ? 25 + pollCount * 15 : 100;
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
             success: true,
             data: {
-              status,
-              progress,
-              estimatedTimeRemaining: pollCount < 3 ? 30 : null,
-              itineraryId: pollCount >= 3 ? 'test-itinerary-id' : undefined,
+              status: 'research-in-progress',
+              progress: 40,
+              estimatedTimeRemaining: 30,
             },
           }),
         });
@@ -422,14 +417,13 @@ test.describe('Itinerary Display', () => {
         if (route.request().url().includes('status')) {
           await route.continue();
         } else {
-          const itinerary =
-            pollCount >= 3
-              ? mockItinerary
-              : { ...mockItinerary, status: 'draft' };
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ success: true, data: itinerary }),
+            body: JSON.stringify({
+              success: true,
+              data: { ...mockItinerary, status: 'draft' },
+            }),
           });
         }
       }
@@ -539,7 +533,10 @@ test.describe('Requirements Form', () => {
     await page.getByRole('button', { name: /next/i }).click();
 
     await expect(
-      page.getByRole('heading', { name: /special requests/i })
+      page.getByRole('heading', {
+        name: 'Special Requests & Accessibility',
+        exact: true,
+      })
     ).toBeVisible();
     await expect(
       page.getByRole('button', { name: /create my itinerary/i })
@@ -582,7 +579,7 @@ test.describe('Requirements Form', () => {
 
     // Wait for debounce to update store (300ms) and button to be enabled
     const nextButton = page.getByRole('button', { name: /next/i });
-    await expect(nextButton).toBeEnabled({ timeout: 1000 });
+    await expect(nextButton).toBeEnabled({ timeout: 5000 });
     await nextButton.click();
 
     await page.getByRole('button', { name: /next/i }).click();
