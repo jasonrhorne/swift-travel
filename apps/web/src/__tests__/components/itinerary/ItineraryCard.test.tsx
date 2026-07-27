@@ -60,7 +60,7 @@ const mockItinerary: Itinerary = {
   persona: 'photography',
   startDate: new Date('2024-06-01'),
   endDate: new Date('2024-06-02'),
-  status: 'finalized',
+  status: 'completed',
   activities: [mockActivity],
   metadata: {
     processingTimeSeconds: 25,

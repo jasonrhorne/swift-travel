@@ -51,10 +51,7 @@ export default function ItineraryDisplay({
           });
 
           // Check if still processing
-          if (
-            response.data.status === 'draft' ||
-            response.data.status === 'validated'
-          ) {
+          if (response.data.status === 'processing') {
             setIsProcessing(true);
           }
         } else {
@@ -154,12 +151,12 @@ export default function ItineraryDisplay({
       )}
 
       {/* Itinerary Content */}
-      {!isProcessing && itinerary.status === 'finalized' && (
+      {!isProcessing && itinerary.status === 'completed' && (
         <ItineraryCard itinerary={itinerary} />
       )}
 
       {/* Processing Status */}
-      {!isProcessing && itinerary.status !== 'finalized' && (
+      {!isProcessing && itinerary.status !== 'completed' && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
           <h3 className="text-lg font-semibold text-yellow-800 mb-2">
             Itinerary In Progress

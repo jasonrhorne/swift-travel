@@ -8,7 +8,7 @@ const mockItinerary = {
     'A curated 3-day photography itinerary exploring the best of Paris.',
   destination: 'Paris, France',
   interests: ['photography', 'sightseeing'],
-  status: 'finalized',
+  status: 'completed',
   startDate: '2024-06-01',
   endDate: '2024-06-03',
   activities: [
@@ -422,7 +422,7 @@ test.describe('Itinerary Display', () => {
             contentType: 'application/json',
             body: JSON.stringify({
               success: true,
-              data: { ...mockItinerary, status: 'draft' },
+              data: { ...mockItinerary, status: 'processing' },
             }),
           });
         }

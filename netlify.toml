@@ -1,5 +1,5 @@
 [build]
-  publish = "apps/web/out" 
+  publish = ".next"
   command = "npm run build:web && npm run build:functions && mkdir -p netlify-functions && cp -r apps/functions/dist/apps/functions/src/* netlify-functions/"
 
 [build.environment]
@@ -9,16 +9,22 @@
 [functions]
   directory = "netlify-functions"
 
-# Redirect rules for SPA
+# Next.js SSR - serve from .next instead of static export
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/_next/data/*"
+  to = "/_next/data/:splat"
   status = 200
 
 # API redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA fallback - must come after specific routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
 
 # Security headers

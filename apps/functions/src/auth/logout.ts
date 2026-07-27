@@ -1,11 +1,14 @@
 import { Handler } from '@netlify/functions';
-import Redis from 'ioredis';
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import pino from 'pino';
 import { authConfig } from '@swift-travel/shared';
 import type { SessionToken } from '@swift-travel/shared';
-import { createAuthErrorResponse, createAuthSuccessResponse } from '../shared/auth-response';
+import {
+  createAuthErrorResponse,
+  createAuthSuccessResponse,
+} from '../shared/auth-response';
+import { getRedis } from '../shared/redis';
 
 // Initialize logger
 const logger = pino({
@@ -14,7 +17,7 @@ const logger = pino({
 });
 
 // Initialize Redis client
-const redis = new Redis(authConfig.upstashRedisUrl);
+const redis = getRedis();
 
 // Revoked token key generator
 const getRevokedTokenKey = (jti: string): string => `revoked_token:${jti}`;
@@ -67,7 +70,7 @@ async function revokeToken(token: string): Promise<void> {
       Math.floor((expiresAt - Date.now()) / 1000)
     );
 
-    await redis.setex(key, secondsUntilExpiry, 'revoked');
+    await redis.set(key, 'revoked', { ex: secondsUntilExpiry });
     logger.info({ jti, expiresIn: secondsUntilExpiry }, 'Token revoked');
   } catch (error) {
     const errorMessage =
@@ -87,7 +90,10 @@ export const handler: Handler = async event => {
   try {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
-      return createAuthErrorResponse(405, 'Method not allowed: Only POST requests are allowed');
+      return createAuthErrorResponse(
+        405,
+        'Method not allowed: Only POST requests are allowed'
+      );
     }
 
     // Extract and validate session token
@@ -123,12 +129,17 @@ export const handler: Handler = async event => {
       'Logout successful'
     );
 
-    return createAuthSuccessResponse({
-      message: 'Logged out successfully',
-      success: true,
-    }, 200, {
-      'Set-Cookie': 'session=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/'
-    });
+    return createAuthSuccessResponse(
+      {
+        message: 'Logged out successfully',
+        success: true,
+      },
+      200,
+      {
+        'Set-Cookie':
+          'session=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/',
+      }
+    );
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -138,8 +149,13 @@ export const handler: Handler = async event => {
       'Logout failed'
     );
 
-    return createAuthErrorResponse(500, 'An internal error occurred during logout', 'INTERNAL_ERROR',
-      process.env.NODE_ENV === 'development' ? { details: errorMessage } : undefined
+    return createAuthErrorResponse(
+      500,
+      'An internal error occurred during logout',
+      'INTERNAL_ERROR',
+      process.env.NODE_ENV === 'development'
+        ? { details: errorMessage }
+        : undefined
     );
   }
 };

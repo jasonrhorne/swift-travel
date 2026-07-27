@@ -62,7 +62,8 @@ export interface UserRequirements {
   interests: string[]; // Primary field for travel preferences
   persona?: PersonaType; // Optional for backward compatibility
   duration: 'long-weekend';
-  dates?: { // Optional for backward compatibility
+  dates?: {
+    // Optional for backward compatibility
     startDate: Date;
     endDate: Date;
   };
@@ -94,7 +95,11 @@ export type ActivityCategory =
   | 'accommodation'
   | 'shopping'
   | 'entertainment';
-export type ItineraryStatus = 'draft' | 'validated' | 'finalized' | 'archived';
+export type ItineraryStatus =
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'archived';
 
 export interface ActivityTiming {
   dayNumber: number;

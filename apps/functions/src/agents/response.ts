@@ -376,7 +376,6 @@ async function cleanupRedisData(requestId: string): Promise<void> {
       `research_results:${requestId}`,
       `curation_results:${requestId}`,
       `validation_results:${requestId}`,
-      `processing_timeout:${requestId}`,
     ];
 
     await Promise.all(keys.map(key => redis.del(key)));
